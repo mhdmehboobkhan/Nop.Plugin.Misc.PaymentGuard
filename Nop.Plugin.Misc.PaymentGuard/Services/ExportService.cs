@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using System.Text.Json;
 using Nop.Plugin.Misc.PaymentGuard.Domain;
+using Nop.Plugin.Misc.PaymentGuard.Dto;
 using Nop.Services.Stores;
 
 namespace Nop.Plugin.Misc.PaymentGuard.Services

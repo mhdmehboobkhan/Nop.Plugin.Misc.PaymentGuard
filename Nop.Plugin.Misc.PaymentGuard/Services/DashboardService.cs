@@ -14,21 +14,23 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
         private readonly IRepository<ComplianceAlert> _complianceAlertRepository;
         private readonly IRepository<AuthorizedScript> _authorizedScriptRepository;
         private readonly IMonitoringService _monitoringService;
+        private readonly IAuthorizedScriptService _authorizedScriptService;
 
         #endregion
 
         #region Ctor
 
-        public DashboardService(
-            IRepository<ScriptMonitoringLog> monitoringLogRepository,
+        public DashboardService(IRepository<ScriptMonitoringLog> monitoringLogRepository,
             IRepository<ComplianceAlert> complianceAlertRepository,
             IRepository<AuthorizedScript> authorizedScriptRepository,
-            IMonitoringService monitoringService)
+            IMonitoringService monitoringService,
+            IAuthorizedScriptService authorizedScriptService)
         {
             _monitoringLogRepository = monitoringLogRepository;
             _complianceAlertRepository = complianceAlertRepository;
             _authorizedScriptRepository = authorizedScriptRepository;
             _monitoringService = monitoringService;
+            _authorizedScriptService = authorizedScriptService;
         }
 
         #endregion
@@ -39,6 +41,7 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
         {
             var fromDate = DateTime.UtcNow.AddDays(-days);
             var report = await _monitoringService.GenerateComplianceReportAsync(storeId, fromDate);
+            var expiredScripts = await _authorizedScriptService.GetExpiredScriptsAsync(30, storeId); // 30 days
 
             var model = new DashboardModel
             {
@@ -60,6 +63,14 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
                 ComplianceMetrics = await GetComplianceMetricsAsync(storeId, days),
                 PerformanceMetrics = await GetPerformanceMetricsAsync(storeId, days)
             };
+
+            model.ExpiredScriptsCount = expiredScripts.Count;
+            model.ExpiredScripts = expiredScripts.Take(5).Select(s => new ExpiredScriptInfo
+            {
+                ScriptUrl = s.ScriptUrl,
+                LastVerified = s.LastVerifiedUtc,
+                DaysExpired = (DateTime.UtcNow - s.LastVerifiedUtc).Days
+            }).ToList();
 
             // Add any additional view data if needed
             model.SelectedDays = days;

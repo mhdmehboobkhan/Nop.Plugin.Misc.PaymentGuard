@@ -29,7 +29,8 @@ namespace Nop.Plugin.Misc.PaymentGuard
         private readonly ISettingService _settingService;
         private readonly IScheduleTaskService _scheduleTaskService;
         private readonly PaymentGuardSettings _paymentGuardSettings;
-
+        private readonly IPermissionService _permissionService;
+        
         #endregion
 
         #region Ctor
@@ -50,13 +51,15 @@ namespace Nop.Plugin.Misc.PaymentGuard
             IWebHelper webHelper,
             ISettingService settingService,
             IScheduleTaskService scheduleTaskService,
-            PaymentGuardSettings paymentGuardSettings)
+            PaymentGuardSettings paymentGuardSettings,
+            IPermissionService permissionService)
         {
             _localizationService = localizationService;
             _webHelper = webHelper;
             _settingService = settingService;
             _scheduleTaskService = scheduleTaskService;
             _paymentGuardSettings = paymentGuardSettings;
+            _permissionService = permissionService;
         }
 
         #endregion
@@ -194,13 +197,36 @@ namespace Nop.Plugin.Misc.PaymentGuard
                 });
             }
 
+            // Install maintenance task for script verification
+            if (await _scheduleTaskService.GetTaskByTypeAsync("Nop.Plugin.Misc.PaymentGuard.Tasks.PaymentGuardMaintenanceTask") == null)
+            {
+                await _scheduleTaskService.InsertTaskAsync(new ScheduleTask
+                {
+                    Name = "PaymentGuard Script Verification Task",
+                    Seconds = 604800, // Weekly
+                    Type = "Nop.Plugin.Misc.PaymentGuard.Tasks.PaymentGuardMaintenanceTask",
+                    Enabled = true,
+                    StopOnError = false,
+                });
+            }
+
             // Install permissions
-            var permissionService = EngineContext.Current.Resolve<IPermissionService>();
             var permissionProvider = new PaymentGuardPermissionProvider();
+            var allPermissions = await _permissionService.GetAllPermissionRecordsAsync();
 
             foreach (var permission in permissionProvider.GetPermissions())
             {
-                await permissionService.InsertPermissionRecordAsync(permission);
+                // Check if permission already exists
+                var existingPermission = allPermissions.Where(x => x.SystemName == permission.SystemName).FirstOrDefault();
+                if (existingPermission == null)
+                {
+                    await _permissionService.InsertPermissionRecordAsync(permission);
+                }
+                else
+                {
+                    // Update the existing permission's Id for role mapping
+                    permission.Id = existingPermission.Id;
+                }
             }
 
             // Install default permissions for administrators
@@ -211,11 +237,18 @@ namespace Nop.Plugin.Misc.PaymentGuard
             {
                 foreach (var permission in permissionProvider.GetPermissions())
                 {
-                    await permissionService.InsertPermissionRecordCustomerRoleMappingAsync(new PermissionRecordCustomerRoleMapping
+                    // Check if the permission is already assigned to the admin role
+                    var existingMapping = await _permissionService.GetMappingByPermissionRecordIdAsync(permission.Id);
+                    var isAlreadyAssigned = existingMapping.Any(m => m.CustomerRoleId == adminRole.Id);
+
+                    if (!isAlreadyAssigned)
                     {
-                        CustomerRoleId = adminRole.Id,
-                        PermissionRecordId = permission.Id
-                    });
+                        await _permissionService.InsertPermissionRecordCustomerRoleMappingAsync(new PermissionRecordCustomerRoleMapping
+                        {
+                            CustomerRoleId = adminRole.Id,
+                            PermissionRecordId = permission.Id
+                        });
+                    }
                 }
             }
 
@@ -310,6 +343,33 @@ namespace Nop.Plugin.Misc.PaymentGuard
                 ["Plugins.Misc.PaymentGuard.Fields.LastVerifiedUtc"] = "Last Verified",
                 ["Plugins.Misc.PaymentGuard.Fields.LastVerifiedUtc.Hint"] = "Date and time when this script was last verified for integrity",
 
+                // Compliance Report Resources  
+                ["Plugins.Misc.PaymentGuard.ComplianceReport.PageTitle"] = "PaymentGuard Compliance Report",
+                ["Plugins.Misc.PaymentGuard.ComplianceReport.DownloadPDF"] = "Download PDF",
+                ["Plugins.Misc.PaymentGuard.ComplianceReport.BackToDashboard"] = "Back to Dashboard",
+                ["Plugins.Misc.PaymentGuard.ComplianceReport.ReportPeriod"] = "Report Period:",
+                ["Plugins.Misc.PaymentGuard.ComplianceReport.Generated"] = "Generated:",
+                ["Plugins.Misc.PaymentGuard.ComplianceReport.TotalScripts"] = "Total Scripts",
+                ["Plugins.Misc.PaymentGuard.ComplianceReport.Authorized"] = "Authorized",
+                ["Plugins.Misc.PaymentGuard.ComplianceReport.Unauthorized"] = "Unauthorized",
+                ["Plugins.Misc.PaymentGuard.ComplianceReport.ChecksPerformed"] = "Checks Performed",
+                ["Plugins.Misc.PaymentGuard.ComplianceReport.ComplianceAssessment"] = "Compliance Assessment",
+                ["Plugins.Misc.PaymentGuard.ComplianceReport.Recommendations"] = "Recommendations",
+                ["Plugins.Misc.PaymentGuard.ComplianceReport.HighPriority"] = "High Priority",
+                ["Plugins.Misc.PaymentGuard.ComplianceReport.MediumPriority"] = "Medium Priority",
+                ["Plugins.Misc.PaymentGuard.ComplianceReport.LowPriority"] = "Low Priority",
+                ["Plugins.Misc.PaymentGuard.ComplianceReport.BestPractices"] = "Best Practices",
+                ["Plugins.Misc.PaymentGuard.ComplianceReport.MostCommonIssues"] = "Most Common Issues",
+                ["Plugins.Misc.PaymentGuard.ComplianceReport.AdditionalInformation"] = "Additional Information",
+                ["Plugins.Misc.PaymentGuard.ComplianceReport.LastCheckDate"] = "Last Check Date:",
+                ["Plugins.Misc.PaymentGuard.ComplianceReport.TotalAlertsGenerated"] = "Total Alerts Generated:",
+                ["Plugins.Misc.PaymentGuard.ComplianceReport.IssueRate"] = "Issue Rate:",
+                ["Plugins.Misc.PaymentGuard.ComplianceReport.ReportType"] = "Report Type:",
+                ["Plugins.Misc.PaymentGuard.ComplianceReport.RequirementsCovered"] = "Requirements Covered:",
+                ["Plugins.Misc.PaymentGuard.ComplianceReport.NextRecommendedReview"] = "Next Recommended Review:",
+                ["Plugins.Misc.PaymentGuard.ComplianceReport.PCIDSSCompliance"] = "PCI DSS Compliance Assessment",
+                ["Plugins.Misc.PaymentGuard.ComplianceReport.Requirements"] = "6.4.3, 11.6.1",
+                
                 // Compliance Alert Fields
                 ["Plugins.Misc.PaymentGuard.Fields.AlertType"] = "Alert Type",
                 ["Plugins.Misc.PaymentGuard.Fields.AlertType.Hint"] = "The type of security alert",
@@ -341,6 +401,18 @@ namespace Nop.Plugin.Misc.PaymentGuard
                 ["Plugins.Misc.PaymentGuard.Fields.SearchIsResolved.Hint"] = "Filter by resolution status",
 
                 // Monitoring Log Fields
+                ["Plugins.Misc.PaymentGuard.MonitoringLogs.View"] = "View",
+                ["Plugins.Misc.PaymentGuard.MonitoringLogs.Compliant"] = "Compliant",
+                ["Plugins.Misc.PaymentGuard.MonitoringLogs.HasIssues"] = "Has Issues",
+                ["Plugins.Misc.PaymentGuard.MonitoringLogs.Manual"] = "Manual",
+                ["Plugins.Misc.PaymentGuard.MonitoringLogs.Scheduled"] = "Scheduled",
+                ["Plugins.Misc.PaymentGuard.MonitoringLogs.ManualCheckUrl"] = "Page URL:",
+                ["Plugins.Misc.PaymentGuard.MonitoringLogs.UrlPlaceholder"] = "https://yourstore.com/checkout",
+                ["Plugins.Misc.PaymentGuard.MonitoringLogs.Cancel"] = "Cancel",
+                ["Plugins.Misc.PaymentGuard.MonitoringLogs.RunCheck"] = "Run Check",
+                ["Plugins.Misc.PaymentGuard.MonitoringLogs.EnterValidUrl"] = "Please enter a valid URL",
+                ["Plugins.Misc.PaymentGuard.MonitoringLogs.ErrorPerformingCheck"] = "Error performing manual check",
+
                 ["Plugins.Misc.PaymentGuard.Fields.PageUrl"] = "Page URL",
                 ["Plugins.Misc.PaymentGuard.Fields.PageUrl.Hint"] = "The URL of the monitored page",
                 ["Plugins.Misc.PaymentGuard.Fields.TotalScriptsFound"] = "Total Scripts",
@@ -394,6 +466,13 @@ namespace Nop.Plugin.Misc.PaymentGuard
                 ["Plugins.Misc.PaymentGuard.Dashboard.TotalScriptsMonitoredLabel"] = "Total Scripts Monitored",
                 ["Plugins.Misc.PaymentGuard.Dashboard.AuthorizedScriptsLabel"] = "Authorized Scripts",
                 ["Plugins.Misc.PaymentGuard.Dashboard.UnauthorizedScriptsLabel"] = "Unauthorized Scripts",
+                
+                ["Plugins.Misc.PaymentGuard.Dashboard.ScriptsVerificationLabel"] = "Scripts Need Verification",
+                ["Plugins.Misc.PaymentGuard.Dashboard.ScriptsVerificationDetail"] = "You have <strong>{0}</strong> authorized scripts that haven't been verified in over 30 days.",
+                ["Plugins.Misc.PaymentGuard.Dashboard.ScriptsVerificationDaysDue"] = "days overdue",
+                ["Plugins.Misc.PaymentGuard.Dashboard.ScriptsVerificationReview"] = "Review Scripts",
+
+
                 ["Plugins.Misc.PaymentGuard.Dashboard.ComplianceScoreLabel"] = "Compliance Score",
                 ["Plugins.Misc.PaymentGuard.Dashboard.ComplianceOverview"] = "Compliance Overview",
                 ["Plugins.Misc.PaymentGuard.Dashboard.ComplianceOverview.Score"] = "Compliance Score:",
@@ -408,6 +487,36 @@ namespace Nop.Plugin.Misc.PaymentGuard
                 ["Plugins.Misc.PaymentGuard.Dashboard.ComplianceExcellent"] = "Excellent",
                 ["Plugins.Misc.PaymentGuard.Dashboard.ComplianceGood"] = "Good",
                 ["Plugins.Misc.PaymentGuard.Dashboard.ComplianceNeedsAttention"] = "Needs Attention",
+                ["Plugins.Misc.PaymentGuard.Dashboard.ComplianceTrends"] = "Compliance Trends (Last 30 Days)",
+                ["Plugins.Misc.PaymentGuard.Dashboard.AlertTypesDistribution"] = "Alert Types Distribution",
+                ["Plugins.Misc.PaymentGuard.Dashboard.MonitoringActivity"] = "Monitoring Activity",
+                ["Plugins.Misc.PaymentGuard.Dashboard.RiskLevelBreakdown"] = "Risk Level Breakdown",
+                ["Plugins.Misc.PaymentGuard.Dashboard.PerformanceMetrics"] = "Performance Metrics",
+                ["Plugins.Misc.PaymentGuard.Dashboard.TopViolatingScripts"] = "Top Violating Scripts",
+                ["Plugins.Misc.PaymentGuard.Dashboard.AvgResponseTime"] = "Avg Response Time",
+                ["Plugins.Misc.PaymentGuard.Dashboard.SystemUptime"] = "System Uptime",
+                ["Plugins.Misc.PaymentGuard.Dashboard.CacheHitRate"] = "Cache Hit Rate",
+                ["Plugins.Misc.PaymentGuard.Dashboard.ApiCallsThisWeek"] = "API Calls This Week",
+                ["Plugins.Misc.PaymentGuard.Dashboard.SuccessRate"] = "Success Rate",
+                ["Plugins.Misc.PaymentGuard.Dashboard.AvgResolutionTime"] = "Avg Resolution Time",
+                ["Plugins.Misc.PaymentGuard.Dashboard.ResolvedThisWeek"] = "Resolved This Week",
+                ["Plugins.Misc.PaymentGuard.Dashboard.NewAlerts"] = "New Alerts",
+                ["Plugins.Misc.PaymentGuard.Dashboard.SecurityPosture"] = "Security Posture",
+                ["Plugins.Misc.PaymentGuard.Dashboard.Script"] = "Script",
+                ["Plugins.Misc.PaymentGuard.Dashboard.Violations"] = "Violations",
+                ["Plugins.Misc.PaymentGuard.Dashboard.Risk"] = "Risk",
+                ["Plugins.Misc.PaymentGuard.Dashboard.LastSeen"] = "Last Seen",
+                ["Plugins.Misc.PaymentGuard.Dashboard.NoViolationsDetected"] = "No violations detected",
+                ["Plugins.Misc.PaymentGuard.Dashboard.Refresh"] = "Refresh",
+                ["Plugins.Misc.PaymentGuard.Dashboard.Loading"] = "Loading...",
+                ["Plugins.Misc.PaymentGuard.Dashboard.SecureCompliant"] = "Secure & Compliant",
+                ["Plugins.Misc.PaymentGuard.Dashboard.NewThisWeek"] = "new this week",
+                ["Plugins.Misc.PaymentGuard.Dashboard.VsLastWeek"] = "vs last week",
+                ["Plugins.Misc.PaymentGuard.Dashboard.NoAlertsInSelectedPeriod"] = "No alerts in selected period",
+                ["Plugins.Misc.PaymentGuard.Dashboard.Last7Days"] = "Last 7 Days",
+                ["Plugins.Misc.PaymentGuard.Dashboard.Last30Days"] = "Last 30 Days",
+                ["Plugins.Misc.PaymentGuard.Dashboard.Last90Days"] = "Last 90 Days",
+
 
                 // Action Messages
                 ["Plugins.Misc.PaymentGuard.ScriptAdded"] = "Script has been added successfully",
@@ -465,6 +574,14 @@ namespace Nop.Plugin.Misc.PaymentGuard
 
             // Remove scheduled task
             var task = await _scheduleTaskService.GetTaskByTypeAsync("Nop.Plugin.Misc.PaymentGuard.Tasks.MonitoringTask");
+            if (task != null)
+                await _scheduleTaskService.DeleteTaskAsync(task);
+
+            task = await _scheduleTaskService.GetTaskByTypeAsync("Nop.Plugin.Misc.PaymentGuard.Tasks.PaymentGuardCleanupTask");
+            if (task != null)
+                await _scheduleTaskService.DeleteTaskAsync(task);
+
+            task = await _scheduleTaskService.GetTaskByTypeAsync("Nop.Plugin.Misc.PaymentGuard.Tasks.PaymentGuardMaintenanceTask");
             if (task != null)
                 await _scheduleTaskService.DeleteTaskAsync(task);
 

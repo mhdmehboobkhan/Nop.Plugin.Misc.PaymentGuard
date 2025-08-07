@@ -35,7 +35,7 @@
         </div>
 
         <button type="button" class="btn btn-primary" onclick="refreshDashboard()">
-            <i class="fas fa-sync"></i> Refresh
+            <i class="fas fa-sync"></i> @T("Plugins.Misc.PaymentGuard.Dashboard.Refresh")
         </button>
         <a asp-action="List" class="btn btn-outline-primary">
             <i class="fas fa-list"></i> @T("Plugins.Misc.PaymentGuard.ManageScripts")
@@ -54,7 +54,7 @@
                         <p>@T("Plugins.Misc.PaymentGuard.Dashboard.TotalScriptsMonitoredLabel")</p>
                         @if (Model.ComplianceMetrics.ScriptsAddedThisWeek > 0)
                         {
-                            <small class="text-light"><i class="fas fa-arrow-up"></i> +@Model.ComplianceMetrics.ScriptsAddedThisWeek this week</small>
+                            <small class="text-light"><i class="fas fa-arrow-up"></i> +@Model.ComplianceMetrics.ScriptsAddedThisWeek @T("Plugins.Misc.PaymentGuard.Dashboard.NewThisWeek")</small>
                         }
                     </div>
                     <div class="icon">
@@ -67,7 +67,7 @@
                     <div class="inner">
                         <h3>@Model.AuthorizedScriptsCount</h3>
                         <p>@T("Plugins.Misc.PaymentGuard.Dashboard.AuthorizedScriptsLabel")</p>
-                        <small class="text-light">Secure & Compliant</small>
+                        <small class="text-light">@T("Plugins.Misc.PaymentGuard.Dashboard.SecureCompliant")</small>
                     </div>
                     <div class="icon">
                         <i class="fas fa-check-shield"></i>
@@ -81,7 +81,7 @@
                         <p>@T("Plugins.Misc.PaymentGuard.Dashboard.UnauthorizedScriptsLabel")</p>
                         @if (Model.ComplianceMetrics.NewAlertsThisWeek > 0)
                         {
-                            <small class="text-dark"><i class="fas fa-exclamation-triangle"></i> @Model.ComplianceMetrics.NewAlertsThisWeek new this week</small>
+                            <small class="text-dark"><i class="fas fa-exclamation-triangle"></i> @Model.ComplianceMetrics.NewAlertsThisWeek @T("Plugins.Misc.PaymentGuard.Dashboard.NewThisWeek")</small>
                         }
                     </div>
                     <div class="icon">
@@ -98,7 +98,7 @@
                         {
                             <small class="@(Model.ComplianceMetrics.ComplianceImprovement > 0 ? "text-success" : "text-danger")">
                                 <i class="fas fa-arrow-@(Model.ComplianceMetrics.ComplianceImprovement > 0 ? "up" : "down")"></i> 
-                                @Math.Abs(Model.ComplianceMetrics.ComplianceImprovement).ToString("F1")% vs last week
+                                @Math.Abs(Model.ComplianceMetrics.ComplianceImprovement).ToString("F1")% @T("Plugins.Misc.PaymentGuard.Dashboard.VsLastWeek")
                             </small>
                         }
                     </div>
@@ -109,6 +109,25 @@
             </div>
         </div>
 
+        @if (Model.ExpiredScriptsCount > 0)
+        {
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="alert alert-warning">
+                        <h4><i class="fas fa-exclamation-triangle"></i> @T("Plugins.Misc.PaymentGuard.Dashboard.ScriptsVerificationLabel")</h4>
+                        <p>@(string.Format(T("Plugins.Misc.PaymentGuard.Dashboard.ScriptsVerificationDetail").Text, Model.ExpiredScriptsCount))</p>
+                        <ul>
+                            @foreach (var script in Model.ExpiredScripts)
+                            {
+                                <li><code>@script.ScriptUrl</code> - @script.DaysExpired @T("Plugins.Misc.PaymentGuard.Dashboard.ScriptsVerificationDaysDue")</li>
+                            }
+                        </ul>
+                        <a href="@Url.Action("List")" class="btn btn-warning">@T("Plugins.Misc.PaymentGuard.Dashboard.ScriptsVerificationReview")</a>
+                    </div>
+                </div>
+            </div>
+        }
+
         <!-- Charts Row -->
         <div class="row">
             <!-- Compliance History Chart -->
@@ -117,7 +136,7 @@
                     <div class="card-header">
                         <h3 class="card-title">
                             <i class="fas fa-chart-line"></i>
-                            Compliance Trends (Last 30 Days)
+                            @T("Plugins.Misc.PaymentGuard.Dashboard.ComplianceTrends")
                         </h3>
                     </div>
                     <div class="card-body">
@@ -132,7 +151,7 @@
                     <div class="card-header">
                         <h3 class="card-title">
                             <i class="fas fa-chart-pie"></i>
-                            Alert Types Distribution
+                            @T("Plugins.Misc.PaymentGuard.Dashboard.AlertTypesDistribution")
                         </h3>
                     </div>
                     <div class="card-body">
@@ -150,7 +169,7 @@
                     <div class="card-header">
                         <h3 class="card-title">
                             <i class="fas fa-search"></i>
-                            Monitoring Activity
+                            @T("Plugins.Misc.PaymentGuard.Dashboard.MonitoringActivity")
                         </h3>
                     </div>
                     <div class="card-body">
@@ -165,7 +184,7 @@
                     <div class="card-header">
                         <h3 class="card-title">
                             <i class="fas fa-exclamation-circle"></i>
-                            Risk Level Breakdown
+                            @T("Plugins.Misc.PaymentGuard.Dashboard.RiskLevelBreakdown")
                         </h3>
                     </div>
                     <div class="card-body">
@@ -183,7 +202,7 @@
                     <div class="card-header">
                         <h3 class="card-title">
                             <i class="fas fa-tachometer-alt"></i>
-                            Performance Metrics
+                            @T("Plugins.Misc.PaymentGuard.Dashboard.PerformanceMetrics")
                         </h3>
                     </div>
                     <div class="card-body">
@@ -191,30 +210,30 @@
                             <div class="col-sm-6">
                                 <div class="description-block">
                                     <h5 class="description-header">@Model.PerformanceMetrics.AverageMonitoringTime.ToString("F1")s</h5>
-                                    <span class="description-text">Avg Response Time</span>
+                                    <span class="description-text">@T("Plugins.Misc.PaymentGuard.Dashboard.AvgResponseTime")</span>
                                 </div>
                             </div>
                             <div class="col-sm-6">
                                 <div class="description-block">
                                     <h5 class="description-header">@Model.PerformanceMetrics.SystemUptime.ToString("F1")%</h5>
-                                    <span class="description-text">System Uptime</span>
+                                    <span class="description-text">@T("Plugins.Misc.PaymentGuard.Dashboard.SystemUptime")</span>
                                 </div>
                             </div>
                             <div class="col-sm-6">
                                 <div class="description-block">
                                     <h5 class="description-header">@Model.PerformanceMetrics.CacheHitRate.ToString("F1")%</h5>
-                                    <span class="description-text">Cache Hit Rate</span>
+                                    <span class="description-text">@T("Plugins.Misc.PaymentGuard.Dashboard.CacheHitRate")</span>
                                 </div>
                             </div>
                             <div class="col-sm-6">
                                 <div class="description-block">
                                     <h5 class="description-header">@Model.PerformanceMetrics.ApiCallsThisWeek</h5>
-                                    <span class="description-text">API Calls This Week</span>
+                                    <span class="description-text">@T("Plugins.Misc.PaymentGuard.Dashboard.ApiCallsThisWeek")</span>
                                 </div>
                             </div>
                         </div>
                         <div class="progress-group mt-3">
-                            Success Rate
+                            @T("Plugins.Misc.PaymentGuard.Dashboard.SuccessRate")
                             <span class="float-right">
                                 @{
                                     var successRate = Model.PerformanceMetrics.SuccessfulChecks + Model.PerformanceMetrics.FailedChecks > 0 
@@ -237,17 +256,17 @@
                     <div class="card-header">
                         <h3 class="card-title">
                             <i class="fas fa-exclamation-triangle"></i>
-                            Top Violating Scripts
+                            @T("Plugins.Misc.PaymentGuard.Dashboard.TopViolatingScripts")
                         </h3>
                     </div>
                     <div class="card-body p-0">
                         <table class="table table-striped">
                             <thead>
                                 <tr>
-                                    <th>Script</th>
-                                    <th>Violations</th>
-                                    <th>Risk</th>
-                                    <th>Last Seen</th>
+                                    <th>@T("Plugins.Misc.PaymentGuard.Dashboard.Script")</th>
+                                    <th>@T("Plugins.Misc.PaymentGuard.Dashboard.Violations")</th>
+                                    <th>@T("Plugins.Misc.PaymentGuard.Dashboard.Risk")</th>
+                                    <th>@T("Plugins.Misc.PaymentGuard.Dashboard.LastSeen")</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -275,7 +294,7 @@
                                 {
                                     <tr>
                                         <td colspan="4" class="text-center text-muted">
-                                            <i class="fas fa-check-circle"></i> No violations detected
+                                            <i class="fas fa-check-circle"></i> @T("Plugins.Misc.PaymentGuard.Dashboard.NoViolationsDetected")
                                         </td>
                                     </tr>
                                 }
@@ -302,7 +321,7 @@
                                 <div class="info-box">
                                     <span class="info-box-icon bg-info"><i class="fas fa-clock"></i></span>
                                     <div class="info-box-content">
-                                        <span class="info-box-text">Avg Resolution Time</span>
+                                        <span class="info-box-text">@T("Plugins.Misc.PaymentGuard.Dashboard.AvgResolutionTime")</span>
                                         <span class="info-box-number">@Model.ComplianceMetrics.AverageResolutionTime.ToString("F1")h</span>
                                     </div>
                                 </div>
@@ -311,7 +330,7 @@
                                 <div class="info-box">
                                     <span class="info-box-icon bg-success"><i class="fas fa-check"></i></span>
                                     <div class="info-box-content">
-                                        <span class="info-box-text">Resolved This Week</span>
+                                        <span class="info-box-text">@T("Plugins.Misc.PaymentGuard.Dashboard.ResolvedThisWeek")</span>
                                         <span class="info-box-number">@Model.ComplianceMetrics.ResolvedAlertsThisWeek</span>
                                     </div>
                                 </div>
@@ -320,7 +339,7 @@
                                 <div class="info-box">
                                     <span class="info-box-icon bg-warning"><i class="fas fa-bell"></i></span>
                                     <div class="info-box-content">
-                                        <span class="info-box-text">New Alerts</span>
+                                        <span class="info-box-text">@T("Plugins.Misc.PaymentGuard.Dashboard.NewAlerts")</span>
                                         <span class="info-box-number">@Model.ComplianceMetrics.NewAlertsThisWeek</span>
                                     </div>
                                 </div>
@@ -329,7 +348,7 @@
                                 <div class="info-box">
                                     <span class="info-box-icon bg-primary"><i class="fas fa-shield-alt"></i></span>
                                     <div class="info-box-content">
-                                        <span class="info-box-text">Security Posture</span>
+                                        <span class="info-box-text">@T("Plugins.Misc.PaymentGuard.Dashboard.SecurityPosture")</span>
                                         <span class="info-box-number">@Model.ComplianceMetrics.SecurityPosture.ToString("F1")%</span>
                                     </div>
                                 </div>
@@ -445,7 +464,7 @@
         var alertData = @Html.Raw(Json.Serialize(Model.AlertTypeDistribution));
 
         if (alertData.length === 0) {
-            ctx.fillText('No alerts in selected period', 10, 50);
+            ctx.fillText('@T("Plugins.Misc.PaymentGuard.Dashboard.NoAlertsInSelectedPeriod")', 10, 50);
             return;
         }
 
@@ -563,9 +582,9 @@
     <!-- Enhanced refresh functionality -->
     function refreshDashboard() {
         // Show loading state
-        var refreshBtn = $('button:contains("Refresh")');
+        var refreshBtn = $('button:contains("@T("Plugins.Misc.PaymentGuard.Dashboard.Refresh")")');
         var originalHtml = refreshBtn.html();
-        refreshBtn.html('<i class="fas fa-spinner fa-spin"></i> Loading...').prop('disabled', true);
+        refreshBtn.html('<i class="fas fa-spinner fa-spin"></i> @T("Plugins.Misc.PaymentGuard.Dashboard.Loading")').prop('disabled', true);
 
         // Get current days filter
         var currentDays = @Model.SelectedDays;

@@ -4,6 +4,7 @@ using Nop.Core;
 using Nop.Data;
 using Nop.Plugin.Misc.PaymentGuard.Domain;
 using Nop.Plugin.Misc.PaymentGuard.Dto;
+using Nop.Services.Logging;
 
 namespace Nop.Plugin.Misc.PaymentGuard.Services
 {
@@ -13,16 +14,19 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
         private readonly IAuthorizedScriptService _authorizedScriptService;
         private readonly HttpClient _httpClient;
         private readonly ISRIValidationService _sriValidationService;
+        private readonly ILogger _logger;
 
         public MonitoringService(IRepository<ScriptMonitoringLog> monitoringLogRepository,
             IAuthorizedScriptService authorizedScriptService,
             HttpClient httpClient,
-            ISRIValidationService sriValidationService)
+            ISRIValidationService sriValidationService,
+            ILogger logger)
         {
             _monitoringLogRepository = monitoringLogRepository;
             _authorizedScriptService = authorizedScriptService;
             _httpClient = httpClient;
             _sriValidationService = sriValidationService;
+            _logger = logger;
         }
 
         public virtual async Task<ScriptMonitoringLog> PerformMonitoringCheckAsync(string pageUrl, int storeId)
@@ -32,12 +36,24 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
 
             var unauthorizedScripts = new List<string>();
             var authorizedCount = 0;
+            var integrityFailures = new List<string>();
 
             foreach (var scriptUrl in detectedScripts)
             {
                 var isAuthorized = await _authorizedScriptService.IsScriptAuthorizedAsync(scriptUrl, storeId);
                 if (isAuthorized)
+                {
                     authorizedCount++;
+
+                    // NEW: Validate script integrity for authorized scripts
+                    var hasValidIntegrity = await _authorizedScriptService.ValidateScriptIntegrityAsync(scriptUrl, null);
+                    if (!hasValidIntegrity)
+                    {
+                        integrityFailures.Add(scriptUrl);
+                        // Consider this as a security issue
+                        await _logger.WarningAsync($"Script integrity validation failed for {scriptUrl}");
+                    }
+                }
                 else
                     unauthorizedScripts.Add(scriptUrl);
             }

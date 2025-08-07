@@ -11,6 +11,8 @@ namespace Nop.Plugin.Misc.PaymentGuard.Models
         public int AuthorizedScriptsCount { get; set; }
 
         public int UnauthorizedScriptsCount { get; set; }
+        
+        public int ExpiredScriptsCount { get; set; }
 
         public double ComplianceScore { get; set; }
 
@@ -42,6 +44,8 @@ namespace Nop.Plugin.Misc.PaymentGuard.Models
         public ComplianceMetrics ComplianceMetrics { get; set; } = new ComplianceMetrics();
 
         public PerformanceMetrics PerformanceMetrics { get; set; } = new PerformanceMetrics();
+
+        public IList<ExpiredScriptInfo> ExpiredScripts { get; set; } = new List<ExpiredScriptInfo>();
     }
 
     public record ComplianceChartDataPoint
@@ -103,5 +107,12 @@ namespace Nop.Plugin.Misc.PaymentGuard.Models
         public double SystemUptime { get; set; } // percentage
         public int ApiCallsThisWeek { get; set; }
         public double CacheHitRate { get; set; } // percentage
+    }
+
+    public record ExpiredScriptInfo
+    {
+        public string ScriptUrl { get; set; }
+        public DateTime LastVerified { get; set; }
+        public int DaysExpired { get; set; }
     }
 }

@@ -1,23 +1,23 @@
 ﻿@model ComplianceReportModel
 @{
     Layout = "_AdminLayout";
-    ViewBag.PageTitle = "PaymentGuard Compliance Report";
+    ViewBag.PageTitle = T("Plugins.Misc.PaymentGuard.ComplianceReport.PageTitle").Text;
     NopHtml.SetActiveMenuItemSystemName("PaymentGuard.Menu.Dashboard");
 }
 
 <div class="content-header clearfix">
     <h1 class="float-left">
         <i class="fas fa-file-alt"></i>
-        PaymentGuard Compliance Report
+        @T("Plugins.Misc.PaymentGuard.ComplianceReport.PageTitle")
     </h1>
     <div class="float-right">
         <a asp-action="GenerateComplianceReport" asp-route-format="pdf" 
            asp-route-fromDate="@Model.FromDate" asp-route-toDate="@Model.ToDate"
            class="btn btn-primary">
-            <i class="fas fa-download"></i> Download PDF
+            <i class="fas fa-download"></i> @T("Plugins.Misc.PaymentGuard.ComplianceReport.DownloadPDF")
         </a>
         <a asp-action="Dashboard" class="btn btn-secondary">
-            <i class="fas fa-arrow-left"></i> Back to Dashboard
+            <i class="fas fa-arrow-left"></i> @T("Plugins.Misc.PaymentGuard.ComplianceReport.BackToDashboard")
         </a>
     </div>
 </div>
@@ -33,8 +33,8 @@
                             <div class="col-md-8">
                                 <h2>@Model.StoreName</h2>
                                 <p class="text-muted">
-                                    <strong>Report Period:</strong> @Model.ReportPeriod<br>
-                                    <strong>Generated:</strong> @Model.GeneratedOnUtc.ToString("MMM dd, yyyy HH:mm") UTC
+                                    <strong>@T("Plugins.Misc.PaymentGuard.ComplianceReport.ReportPeriod")</strong> @Model.ReportPeriod<br>
+                                    <strong>@T("Plugins.Misc.PaymentGuard.ComplianceReport.Generated")</strong> @Model.GeneratedOnUtc.ToString("MMM dd, yyyy HH:mm") UTC
                                 </p>
                             </div>
                             <div class="col-md-4 text-right">
@@ -56,7 +56,7 @@
                 <div class="info-box">
                     <span class="info-box-icon bg-primary"><i class="fas fa-code"></i></span>
                     <div class="info-box-content">
-                        <span class="info-box-text">Total Scripts</span>
+                        <span class="info-box-text">@T("Plugins.Misc.PaymentGuard.ComplianceReport.TotalScripts")</span>
                         <span class="info-box-number">@Model.Report.TotalScriptsMonitored</span>
                     </div>
                 </div>
@@ -65,7 +65,7 @@
                 <div class="info-box">
                     <span class="info-box-icon bg-success"><i class="fas fa-check"></i></span>
                     <div class="info-box-content">
-                        <span class="info-box-text">Authorized</span>
+                        <span class="info-box-text">@T("Plugins.Misc.PaymentGuard.ComplianceReport.Authorized")</span>
                         <span class="info-box-number">@Model.Report.AuthorizedScriptsCount</span>
                     </div>
                 </div>
@@ -74,7 +74,7 @@
                 <div class="info-box">
                     <span class="info-box-icon bg-warning"><i class="fas fa-exclamation-triangle"></i></span>
                     <div class="info-box-content">
-                        <span class="info-box-text">Unauthorized</span>
+                        <span class="info-box-text">@T("Plugins.Misc.PaymentGuard.ComplianceReport.Unauthorized")</span>
                         <span class="info-box-number">@Model.Report.UnauthorizedScriptsCount</span>
                     </div>
                 </div>
@@ -83,7 +83,7 @@
                 <div class="info-box">
                     <span class="info-box-icon bg-info"><i class="fas fa-search"></i></span>
                     <div class="info-box-content">
-                        <span class="info-box-text">Checks Performed</span>
+                        <span class="info-box-text">@T("Plugins.Misc.PaymentGuard.ComplianceReport.ChecksPerformed")</span>
                         <span class="info-box-number">@Model.Report.TotalChecksPerformed</span>
                     </div>
                 </div>
@@ -97,7 +97,7 @@
                     <div class="card-header">
                         <h3 class="card-title">
                             <i class="fas fa-clipboard-check"></i>
-                            Compliance Assessment
+                            @T("Plugins.Misc.PaymentGuard.ComplianceReport.ComplianceAssessment")
                         </h3>
                     </div>
                     <div class="card-body">
@@ -154,7 +154,7 @@
                         <div class="card-header">
                             <h3 class="card-title">
                                 <i class="fas fa-lightbulb"></i>
-                                Recommendations
+                                @T("Plugins.Misc.PaymentGuard.ComplianceReport.Recommendations")
                             </h3>
                         </div>
                         <div class="card-body">
@@ -162,7 +162,7 @@
                             {
                                 <div class="recommendation-section mb-3">
                                     <h6 class="text-danger">
-                                        <i class="fas fa-exclamation-circle"></i> High Priority
+                                        <i class="fas fa-exclamation-circle"></i> @T("Plugins.Misc.PaymentGuard.ComplianceReport.HighPriority")
                                     </h6>
                                     <ul class="small">
                                         @foreach (var action in Model.Recommendations.HighPriorityActions)
@@ -177,7 +177,7 @@
                             {
                                 <div class="recommendation-section mb-3">
                                     <h6 class="text-warning">
-                                        <i class="fas fa-minus-circle"></i> Medium Priority
+                                        <i class="fas fa-minus-circle"></i> @T("Plugins.Misc.PaymentGuard.ComplianceReport.MediumPriority")
                                     </h6>
                                     <ul class="small">
                                         @foreach (var action in Model.Recommendations.MediumPriorityActions)
@@ -192,7 +192,7 @@
                             {
                                 <div class="recommendation-section mb-3">
                                     <h6 class="text-info">
-                                        <i class="fas fa-info-circle"></i> Low Priority
+                                        <i class="fas fa-info-circle"></i> @T("Plugins.Misc.PaymentGuard.ComplianceReport.LowPriority")
                                     </h6>
                                     <ul class="small">
                                         @foreach (var action in Model.Recommendations.LowPriorityActions)
@@ -207,7 +207,7 @@
                             {
                                 <div class="recommendation-section">
                                     <h6 class="text-success">
-                                        <i class="fas fa-check-circle"></i> Best Practices
+                                        <i class="fas fa-check-circle"></i> @T("Plugins.Misc.PaymentGuard.ComplianceReport.BestPractices")
                                     </h6>
                                     <ul class="small">
                                         @foreach (var practice in Model.Recommendations.BestPractices)
@@ -228,7 +228,7 @@
                         <div class="card-header">
                             <h3 class="card-title">
                                 <i class="fas fa-list"></i>
-                                Most Common Issues
+                                @T("Plugins.Misc.PaymentGuard.ComplianceReport.MostCommonIssues")
                             </h3>
                         </div>
                         <div class="card-body">
@@ -253,20 +253,20 @@
                     <div class="card-header">
                         <h3 class="card-title">
                             <i class="fas fa-info-circle"></i>
-                            Additional Information
+                            @T("Plugins.Misc.PaymentGuard.ComplianceReport.AdditionalInformation")
                         </h3>
                     </div>
                     <div class="card-body">
                         <div class="row">
                             <div class="col-md-6">
-                                <p><strong>Last Check Date:</strong> @Model.Report.LastCheckDate.ToString("MMM dd, yyyy HH:mm") UTC</p>
-                                <p><strong>Total Alerts Generated:</strong> @Model.Report.AlertsGenerated</p>
-                                <p><strong>Issue Rate:</strong> @Model.IssueRate.ToString("F1")%</p>
+                                <p><strong>@T("Plugins.Misc.PaymentGuard.ComplianceReport.LastCheckDate")</strong> @Model.Report.LastCheckDate.ToString("MMM dd, yyyy HH:mm") UTC</p>
+                                <p><strong>@T("Plugins.Misc.PaymentGuard.ComplianceReport.TotalAlertsGenerated")</strong> @Model.Report.AlertsGenerated</p>
+                                <p><strong>@T("Plugins.Misc.PaymentGuard.ComplianceReport.IssueRate")</strong> @Model.IssueRate.ToString("F1")%</p>
                             </div>
                             <div class="col-md-6">
-                                <p><strong>Report Type:</strong> PCI DSS Compliance Assessment</p>
-                                <p><strong>Requirements Covered:</strong> 6.4.3, 11.6.1</p>
-                                <p><strong>Next Recommended Review:</strong> @DateTime.UtcNow.AddDays(7).ToString("MMM dd, yyyy")</p>
+                                <p><strong>@T("Plugins.Misc.PaymentGuard.ComplianceReport.ReportType")</strong> @T("Plugins.Misc.PaymentGuard.ComplianceReport.PCIDSSCompliance")</p>
+                                <p><strong>@T("Plugins.Misc.PaymentGuard.ComplianceReport.RequirementsCovered")</strong> @T("Plugins.Misc.PaymentGuard.ComplianceReport.Requirements")</p>
+                                <p><strong>@T("Plugins.Misc.PaymentGuard.ComplianceReport.NextRecommendedReview")</strong> @DateTime.UtcNow.AddDays(7).ToString("MMM dd, yyyy")</p>
                             </div>
                         </div>
                     </div>

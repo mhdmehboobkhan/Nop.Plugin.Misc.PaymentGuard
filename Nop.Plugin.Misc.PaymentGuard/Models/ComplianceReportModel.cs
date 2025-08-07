@@ -1,6 +1,6 @@
 ﻿using Nop.Web.Framework.Models;
 using Nop.Web.Framework.Mvc.ModelBinding;
-using Nop.Plugin.Misc.PaymentGuard.Services;
+using Nop.Plugin.Misc.PaymentGuard.Dto;
 
 namespace Nop.Plugin.Misc.PaymentGuard.Models
 {

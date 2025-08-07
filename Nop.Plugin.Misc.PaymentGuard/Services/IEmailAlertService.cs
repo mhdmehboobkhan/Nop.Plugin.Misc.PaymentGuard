@@ -1,4 +1,5 @@
 ﻿using Nop.Plugin.Misc.PaymentGuard.Domain;
+using Nop.Plugin.Misc.PaymentGuard.Dto;
 
 namespace Nop.Plugin.Misc.PaymentGuard.Services
 {
@@ -11,5 +12,7 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
         Task SendScriptChangeAlertAsync(string alertEmail, string scriptUrl, string storeName);
 
         Task SendCSPViolationAlertAsync(string alertEmail, string violationDetails, string storeName);
+
+        Task SendExpiredScriptsAlertAsync(string alertEmail, IList<AuthorizedScript> expiredScripts, string storeName);
     }
 }
