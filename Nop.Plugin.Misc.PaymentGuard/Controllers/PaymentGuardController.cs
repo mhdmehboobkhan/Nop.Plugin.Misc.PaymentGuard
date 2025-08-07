@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.IdentityModel.Tokens;
 using Nop.Core;
 using Nop.Plugin.Misc.PaymentGuard.Domain;
+using Nop.Plugin.Misc.PaymentGuard.Helpers;
 using Nop.Plugin.Misc.PaymentGuard.Models;
 using Nop.Plugin.Misc.PaymentGuard.Services;
 using Nop.Services.Configuration;
@@ -37,6 +38,7 @@ namespace Nop.Plugin.Misc.PaymentGuard.Controllers
         private readonly IComplianceAlertService _complianceAlertService;
         private readonly ILogger _logger;
         private readonly IDashboardService _dashboardService;
+        private readonly SRIHelper _sriHelper;
 
         public PaymentGuardController(IAuthorizedScriptService authorizedScriptService,
             IMonitoringService monitoringService,
@@ -50,7 +52,8 @@ namespace Nop.Plugin.Misc.PaymentGuard.Controllers
             IExportService exportService,
             IComplianceAlertService complianceAlertService,
             ILogger logger,
-            IDashboardService dashboardService)
+            IDashboardService dashboardService,
+            SRIHelper sriHelper)
         {
             _authorizedScriptService = authorizedScriptService;
             _monitoringService = monitoringService;
@@ -65,6 +68,7 @@ namespace Nop.Plugin.Misc.PaymentGuard.Controllers
             _complianceAlertService = complianceAlertService;
             _logger = logger;
             _dashboardService = dashboardService;
+            _sriHelper = sriHelper;
         }
 
         #region Utilities
@@ -346,7 +350,7 @@ namespace Nop.Plugin.Misc.PaymentGuard.Controllers
                 // Generate hash if script is external
                 if (model.GenerateHash && script.ScriptUrl.StartsWith("http"))
                 {
-                    script.ScriptHash = await _authorizedScriptService.GenerateScriptHashAsync(script.ScriptUrl);
+                    script.ScriptHash = await _sriHelper.GenerateExternalSRIHashAsync(script.ScriptUrl);
                     script.HashAlgorithm = "sha384";
                 }
 
@@ -426,7 +430,7 @@ namespace Nop.Plugin.Misc.PaymentGuard.Controllers
                 // Regenerate hash if requested
                 if (model.GenerateHash && script.ScriptUrl.StartsWith("http"))
                 {
-                    script.ScriptHash = await _authorizedScriptService.GenerateScriptHashAsync(script.ScriptUrl);
+                    script.ScriptHash = await _sriHelper.GenerateExternalSRIHashAsync(script.ScriptUrl);
                     script.LastVerifiedUtc = DateTime.UtcNow;
                 }
 

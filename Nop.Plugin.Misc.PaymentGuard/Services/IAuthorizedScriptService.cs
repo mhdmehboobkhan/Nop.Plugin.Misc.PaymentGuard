@@ -24,8 +24,6 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
 
         Task<IList<AuthorizedScript>> GetAuthorizedScriptsByDomainAsync(string domain, int storeId);
 
-        Task<string> GenerateScriptHashAsync(string scriptUrl);
-
         Task<bool> ValidateScriptIntegrityAsync(string scriptUrl, string expectedHash);
 
         Task UpdateScriptHashAsync(int scriptId, string newHash);

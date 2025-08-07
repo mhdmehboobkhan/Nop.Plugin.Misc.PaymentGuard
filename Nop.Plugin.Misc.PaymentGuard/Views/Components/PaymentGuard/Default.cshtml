@@ -1,10 +1,16 @@
-﻿@model PaymentGuardScriptModel
-@inject Nop.Plugin.Misc.PaymentGuard.Helpers.SRIHelper sriHelper
+﻿@using Nop.Plugin.Misc.PaymentGuard.Helpers
+@using Nop.Core
+@model PaymentGuardScriptModel
+
+
+@inject IStoreContext storeContext
+@inject SRIHelper sriHelper
 
 @if (Model.IsEnabled)
 {
+    var store = await storeContext.GetCurrentStoreAsync();
     @* CSP Header injection *@
-    @if (!string.IsNullOrEmpty(Model.CSPPolicy))
+    if (!string.IsNullOrEmpty(Model.CSPPolicy))
     {
         Context.Response.Headers.Add("Content-Security-Policy", Model.CSPPolicy);
     }
@@ -21,14 +27,9 @@
     </script>
 
     @* Include the monitoring script with dynamic SRI *@
-    @{
-        var scriptPath = "~/Plugins/Misc.PaymentGuard/scripts/paymentguard-monitor.js";
-        var sriHash = Model.EnableSRIValidation ? sriHelper.GenerateSRIHash(scriptPath) : "";
-    }
-    
-    <script src="@scriptPath"
-            @(Model.EnableSRIValidation && !string.IsNullOrEmpty(sriHash) ? $"integrity=\"{sriHash}\"" : "")
-            crossorigin="anonymous"></script>
+    var scriptPath = $"{store.Url}Plugins/Misc.PaymentGuard/scripts/paymentguard-monitor.js";
+    var sriHash = Model.EnableSRIValidation ? await sriHelper.GenerateExternalSRIHashAsync(scriptPath) : "";
+    <script src="@scriptPath" integrity="@sriHash" crossorigin="anonymous"></script>
 
     @* SRI validation helper *@
     @if (Model.EnableSRIValidation)

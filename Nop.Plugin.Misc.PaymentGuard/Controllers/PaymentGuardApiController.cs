@@ -334,7 +334,7 @@ namespace Nop.Plugin.Misc.PaymentGuard.Controllers
             try
             {
                 var store = await _storeContext.GetCurrentStoreAsync();
-                var result = await _monitoringService.ValidateScriptWithSRIAsync(request.ScriptUrl, request.Integrity);
+                var result = await _monitoringService.ValidateScriptWithSRIAsync(store.Id, request.ScriptUrl, request.Integrity);
 
                 return Json(new
                 {

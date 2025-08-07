@@ -8,73 +8,73 @@ namespace Nop.Plugin.Misc.PaymentGuard.Models
 {
     public record ConfigurationModel : BaseNopModel, ISettingsModel
     {
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Fields.IsEnabled")]
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Configure.Fields.IsEnabled")]
         public bool IsEnabled { get; set; }
         public bool IsEnabled_OverrideForStore { get; set; }
 
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Fields.MonitoringFrequency")]
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Configure.Fields.MonitoringFrequency")]
         public int MonitoringFrequency { get; set; }
         public bool MonitoringFrequency_OverrideForStore { get; set; }
 
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Fields.AlertEmail")]
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Configure.Fields.AlertEmail")]
         [EmailAddress]
         public string AlertEmail { get; set; }
         public bool AlertEmail_OverrideForStore { get; set; }
 
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Fields.EnableEmailAlerts")]
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Configure.Fields.EnableEmailAlerts")]
         public bool EnableEmailAlerts { get; set; }
         public bool EnableEmailAlerts_OverrideForStore { get; set; }
 
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Fields.EnableCSPHeaders")]
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Configure.Fields.EnableCSPHeaders")]
         public bool EnableCSPHeaders { get; set; }
         public bool EnableCSPHeaders_OverrideForStore { get; set; }
 
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Fields.EnableSRIValidation")]
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Configure.Fields.EnableSRIValidation")]
         public bool EnableSRIValidation { get; set; }
         public bool EnableSRIValidation_OverrideForStore { get; set; }
 
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Fields.CSPPolicy")]
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Configure.Fields.CSPPolicy")]
         public string CSPPolicy { get; set; }
         public bool CSPPolicy_OverrideForStore { get; set; }
 
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Fields.EnableDetailedLogging")]
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Configure.Fields.EnableDetailedLogging")]
         public bool EnableDetailedLogging { get; set; }
         public bool EnableDetailedLogging_OverrideForStore { get; set; }
 
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Fields.MonitoredPages")]
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Configure.Fields.MonitoredPages")]
         public string MonitoredPages { get; set; }
         public bool MonitoredPages_OverrideForStore { get; set; }
 
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Fields.MaxAlertFrequency")]
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Configure.Fields.MaxAlertFrequency")]
         public int MaxAlertFrequency { get; set; }
         public bool MaxAlertFrequency_OverrideForStore { get; set; }
 
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Fields.LogRetentionDays")]
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Configure.Fields.LogRetentionDays")]
         public int LogRetentionDays { get; set; }
         public bool LogRetentionDays_OverrideForStore { get; set; }
 
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Fields.AlertRetentionDays")]
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Configure.Fields.AlertRetentionDays")]
         public int AlertRetentionDays { get; set; }
         public bool AlertRetentionDays_OverrideForStore { get; set; }
 
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Fields.EnableAutomaticCleanup")]
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Configure.Fields.EnableAutomaticCleanup")]
         public bool EnableAutomaticCleanup { get; set; }
         public bool EnableAutomaticCleanup_OverrideForStore { get; set; }
 
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Fields.CacheExpirationMinutes")]
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Configure.Fields.CacheExpirationMinutes")]
         public int CacheExpirationMinutes { get; set; }
         public bool CacheExpirationMinutes_OverrideForStore { get; set; }
 
         // New API Settings
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Fields.EnableApiRateLimit")]
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Configure.Fields.EnableApiRateLimit")]
         public bool EnableApiRateLimit { get; set; }
         public bool EnableApiRateLimit_OverrideForStore { get; set; }
 
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Fields.ApiRateLimitPerHour")]
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Configure.Fields.ApiRateLimitPerHour")]
         public int ApiRateLimitPerHour { get; set; }
         public bool ApiRateLimitPerHour_OverrideForStore { get; set; }
 
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Fields.WhitelistedIPs")]
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Configure.Fields.WhitelistedIPs")]
         public string WhitelistedIPs { get; set; }
         public bool WhitelistedIPs_OverrideForStore { get; set; }
 

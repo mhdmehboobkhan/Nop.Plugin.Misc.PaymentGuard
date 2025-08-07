@@ -14,7 +14,7 @@ namespace Nop.Plugin.Misc.PaymentGuard.Validators
             // General Settings Validation
             RuleFor(x => x.MonitoringFrequency)
                 .GreaterThan(0)
-                .WithMessageAwait(localizationService.GetResourceAsync("Plugins.Misc.PaymentGuard.Fields.MonitoringFrequency.Range"));
+                .WithMessageAwait(localizationService.GetResourceAsync("Plugins.Misc.PaymentGuard.Configure.Fields.MonitoringFrequency.Range"));
 
             // Alert Settings Validation
             RuleFor(x => x.AlertEmail)
@@ -24,25 +24,25 @@ namespace Nop.Plugin.Misc.PaymentGuard.Validators
 
             RuleFor(x => x.MaxAlertFrequency)
                 .InclusiveBetween(1, 168)
-                .WithMessageAwait(localizationService.GetResourceAsync("Plugins.Misc.PaymentGuard.Fields.MaxAlertFrequency.Range"));
+                .WithMessageAwait(localizationService.GetResourceAsync("Plugins.Misc.PaymentGuard.Configure.Fields.MaxAlertFrequency.Range"));
 
             // Maintenance Settings Validation
             RuleFor(x => x.LogRetentionDays)
                 .InclusiveBetween(1, 365)
-                .WithMessageAwait(localizationService.GetResourceAsync("Plugins.Misc.PaymentGuard.Fields.LogRetentionDays.Range"));
+                .WithMessageAwait(localizationService.GetResourceAsync("Plugins.Misc.PaymentGuard.Configure.Fields.LogRetentionDays.Range"));
 
             RuleFor(x => x.AlertRetentionDays)
                 .InclusiveBetween(1, 365)
-                .WithMessageAwait(localizationService.GetResourceAsync("Plugins.Misc.PaymentGuard.Fields.AlertRetentionDays.Range"));
+                .WithMessageAwait(localizationService.GetResourceAsync("Plugins.Misc.PaymentGuard.Configure.Fields.AlertRetentionDays.Range"));
 
             RuleFor(x => x.CacheExpirationMinutes)
                 .InclusiveBetween(1, 1440)
-                .WithMessageAwait(localizationService.GetResourceAsync("Plugins.Misc.PaymentGuard.Fields.CacheExpirationMinutes.Range"));
+                .WithMessageAwait(localizationService.GetResourceAsync("Plugins.Misc.PaymentGuard.Configure.Fields.CacheExpirationMinutes.Range"));
 
             // API Settings Validation
             RuleFor(x => x.ApiRateLimitPerHour)
                 .InclusiveBetween(1, 100000)
-                .WithMessageAwait(localizationService.GetResourceAsync("Plugins.Misc.PaymentGuard.Fields.ApiRateLimitPerHour.Range"));
+                .WithMessageAwait(localizationService.GetResourceAsync("Plugins.Misc.PaymentGuard.Configure.Fields.ApiRateLimitPerHour.Range"));
 
             RuleFor(x => x.WhitelistedIPs)
                 .Must(BeValidIPList)

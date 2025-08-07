@@ -1,4 +1,5 @@
 ﻿using Nop.Core;
+using Nop.Core.Domain.Cms;
 using Nop.Core.Domain.Customers;
 using Nop.Core.Domain.ScheduleTasks;
 using Nop.Core.Domain.Security;
@@ -30,7 +31,8 @@ namespace Nop.Plugin.Misc.PaymentGuard
         private readonly IScheduleTaskService _scheduleTaskService;
         private readonly PaymentGuardSettings _paymentGuardSettings;
         private readonly IPermissionService _permissionService;
-        
+        private readonly WidgetSettings _widgetSettings;
+
         #endregion
 
         #region Ctor
@@ -52,7 +54,8 @@ namespace Nop.Plugin.Misc.PaymentGuard
             ISettingService settingService,
             IScheduleTaskService scheduleTaskService,
             PaymentGuardSettings paymentGuardSettings,
-            IPermissionService permissionService)
+            IPermissionService permissionService,
+            WidgetSettings widgetSettings)
         {
             _localizationService = localizationService;
             _webHelper = webHelper;
@@ -60,6 +63,7 @@ namespace Nop.Plugin.Misc.PaymentGuard
             _scheduleTaskService = scheduleTaskService;
             _paymentGuardSettings = paymentGuardSettings;
             _permissionService = permissionService;
+            _widgetSettings = widgetSettings;
         }
 
         #endregion
@@ -171,6 +175,12 @@ namespace Nop.Plugin.Misc.PaymentGuard
                 WhitelistedIPs = ""
             });
 
+            if (!_widgetSettings.ActiveWidgetSystemNames.Contains(PaymentGuardDefaults.SystemName))
+            {
+                _widgetSettings.ActiveWidgetSystemNames.Add(PaymentGuardDefaults.SystemName);
+                await _settingService.SaveSettingAsync(_widgetSettings);
+            }
+
             // Install scheduled tasks
             if (await _scheduleTaskService.GetTaskByTypeAsync("Nop.Plugin.Misc.PaymentGuard.Tasks.MonitoringTask") == null)
             {
@@ -266,82 +276,104 @@ namespace Nop.Plugin.Misc.PaymentGuard
                 ["Plugins.Misc.PaymentGuard.Menu.Alerts"] = "Compliance Alerts",
                 ["Plugins.Misc.PaymentGuard.Menu.MonitoringLogs"] = "Monitoring Logs",
 
+                // Page Titles
+                ["Plugins.Misc.PaymentGuard.AddNewScript"] = "Add New Authorized Script",
+                ["Plugins.Misc.PaymentGuard.EditScript"] = "Edit Authorized Script",
+                ["Plugins.Misc.PaymentGuard.BackToList"] = "back to script list",
+                ["Plugins.Misc.PaymentGuard.ManageScripts"] = "Manage Scripts",
+                ["Plugins.Misc.PaymentGuard.Alerts.List"] = "Compliance Alerts",
+                ["Plugins.Misc.PaymentGuard.Alerts.Details"] = "Alert Details",
+                ["Plugins.Misc.PaymentGuard.MonitoringLogs.List"] = "Monitoring Logs",
+                ["Plugins.Misc.PaymentGuard.MonitoringLogs.Details"] = "Log Details",
+                ["Plugins.Misc.PaymentGuard.BackToAlerts"] = "back to alerts list",
+                ["Plugins.Misc.PaymentGuard.BackToLogs"] = "back to monitoring logs",
+
+                // Configuration Sections
+                ["Plugins.Misc.PaymentGuard.Configuration.GeneralSettings"] = "General Settings",
+                ["Plugins.Misc.PaymentGuard.Configuration.AlertSettings"] = "Alert Settings",
+                ["Plugins.Misc.PaymentGuard.Configuration.SecuritySettings"] = "Security Settings",
+                ["Plugins.Misc.PaymentGuard.Configuration.MaintenanceSettings"] = "Maintenance Settings",
+                ["Plugins.Misc.PaymentGuard.Configuration.MaintenanceSettings.Help"] = "Configure automatic cleanup and caching behavior",
+                ["Plugins.Misc.PaymentGuard.Configuration.ApiSettings"] = "API Settings",
+                ["Plugins.Misc.PaymentGuard.Configuration.ApiSettings.Help"] = "Configure API rate limiting and security settings",
+
                 // Configuration Fields
-                ["Plugins.Misc.PaymentGuard.Fields.IsEnabled"] = "Enabled",
-                ["Plugins.Misc.PaymentGuard.Fields.IsEnabled.Hint"] = "Enable or disable PaymentGuard monitoring for this store",
-                ["Plugins.Misc.PaymentGuard.Fields.AlertEmail"] = "Alert Email",
-                ["Plugins.Misc.PaymentGuard.Fields.AlertEmail.Hint"] = "Email address to receive security alerts and notifications",
-                ["Plugins.Misc.PaymentGuard.Fields.EnableEmailAlerts"] = "Enable Email Alerts",
-                ["Plugins.Misc.PaymentGuard.Fields.EnableEmailAlerts.Hint"] = "Send email notifications when unauthorized scripts are detected",
-                ["Plugins.Misc.PaymentGuard.Fields.MonitoringFrequency"] = "Monitoring Frequency (days)",
-                ["Plugins.Misc.PaymentGuard.Fields.MonitoringFrequency.Hint"] = "How often to perform automated monitoring checks (minimum 7 days for PCI DSS compliance)",
-                ["Plugins.Misc.PaymentGuard.Fields.EnableCSPHeaders"] = "Enable CSP Headers",
-                ["Plugins.Misc.PaymentGuard.Fields.EnableCSPHeaders.Hint"] = "Automatically inject Content Security Policy headers on monitored pages",
-                ["Plugins.Misc.PaymentGuard.Fields.EnableSRIValidation"] = "Enable SRI Validation",
-                ["Plugins.Misc.PaymentGuard.Fields.EnableSRIValidation.Hint"] = "Enable Subresource Integrity validation for external scripts",
-                ["Plugins.Misc.PaymentGuard.Fields.CSPPolicy"] = "Content Security Policy",
-                ["Plugins.Misc.PaymentGuard.Fields.CSPPolicy.Hint"] = "Content Security Policy directives. Use 'self' for same-origin scripts.",
-                ["Plugins.Misc.PaymentGuard.Fields.MonitoredPages"] = "Monitored Pages",
-                ["Plugins.Misc.PaymentGuard.Fields.MonitoredPages.Hint"] = "Comma-separated list of pages to monitor (e.g., /checkout,/onepagecheckout)",
-                ["Plugins.Misc.PaymentGuard.Fields.MaxAlertFrequency"] = "Max Alert Frequency (hours)",
-                ["Plugins.Misc.PaymentGuard.Fields.MaxAlertFrequency.Hint"] = "Minimum hours between duplicate alerts",
-                ["Plugins.Misc.PaymentGuard.Fields.LogRetentionDays"] = "Log Retention (days)",
-                ["Plugins.Misc.PaymentGuard.Fields.LogRetentionDays.Hint"] = "Number of days to retain monitoring logs",
-                ["Plugins.Misc.PaymentGuard.Fields.AlertRetentionDays"] = "Alert Retention (days)",
-                ["Plugins.Misc.PaymentGuard.Fields.AlertRetentionDays.Hint"] = "Number of days to retain resolved alerts",
-                ["Plugins.Misc.PaymentGuard.Fields.EnableAutomaticCleanup"] = "Enable Automatic Cleanup",
-                ["Plugins.Misc.PaymentGuard.Fields.EnableAutomaticCleanup.Hint"] = "Automatically clean up old logs and alerts",
-                ["Plugins.Misc.PaymentGuard.Fields.ApiRateLimitPerHour"] = "API Rate Limit (per hour)",
-                ["Plugins.Misc.PaymentGuard.Fields.ApiRateLimitPerHour.Hint"] = "Maximum API calls per hour per IP address",
-                ["Plugins.Misc.PaymentGuard.Fields.WhitelistedIPs"] = "Whitelisted IPs",
-                ["Plugins.Misc.PaymentGuard.Fields.WhitelistedIPs.Hint"] = "Comma-separated list of IP addresses that bypass rate limiting",
-                ["Plugins.Misc.PaymentGuard.Fields.CacheExpirationMinutes"] = "Cache Expiration (minutes)",
-                ["Plugins.Misc.PaymentGuard.Fields.CacheExpirationMinutes.Hint"] = "How long to cache script authorization lookups (recommended: 30-120 minutes)",
-                
+                ["Plugins.Misc.PaymentGuard.Configure.Fields.IsEnabled"] = "Enabled",
+                ["Plugins.Misc.PaymentGuard.Configure.Fields.IsEnabled.Hint"] = "Enable or disable PaymentGuard monitoring for this store",
+                ["Plugins.Misc.PaymentGuard.Configure.Fields.AlertEmail"] = "Alert Email",
+                ["Plugins.Misc.PaymentGuard.Configure.Fields.AlertEmail.Hint"] = "Email address to receive security alerts and notifications",
+                ["Plugins.Misc.PaymentGuard.Configure.Fields.EnableEmailAlerts"] = "Enable Email Alerts",
+                ["Plugins.Misc.PaymentGuard.Configure.Fields.EnableEmailAlerts.Hint"] = "Send email notifications when unauthorized scripts are detected",
+                ["Plugins.Misc.PaymentGuard.Configure.Fields.MonitoringFrequency"] = "Monitoring Frequency (days)",
+                ["Plugins.Misc.PaymentGuard.Configure.Fields.MonitoringFrequency.Hint"] = "How often to perform automated monitoring checks (minimum 7 days for PCI DSS compliance)",
+                ["Plugins.Misc.PaymentGuard.Configure.Fields.EnableCSPHeaders"] = "Enable CSP Headers",
+                ["Plugins.Misc.PaymentGuard.Configure.Fields.EnableCSPHeaders.Hint"] = "Automatically inject Content Security Policy headers on monitored pages",
+                ["Plugins.Misc.PaymentGuard.Configure.Fields.EnableSRIValidation"] = "Enable SRI Validation",
+                ["Plugins.Misc.PaymentGuard.Configure.Fields.EnableSRIValidation.Hint"] = "Enable Subresource Integrity validation for external scripts",
+                ["Plugins.Misc.PaymentGuard.Configure.Fields.CSPPolicy"] = "Content Security Policy",
+                ["Plugins.Misc.PaymentGuard.Configure.Fields.CSPPolicy.Hint"] = "Content Security Policy directives. Use 'self' for same-origin scripts.",
+                ["Plugins.Misc.PaymentGuard.Configure.Fields.MonitoredPages"] = "Monitored Pages",
+                ["Plugins.Misc.PaymentGuard.Configure.Fields.MonitoredPages.Hint"] = "Comma-separated list of pages to monitor (e.g., /checkout,/onepagecheckout)",
+                ["Plugins.Misc.PaymentGuard.Configure.Fields.MaxAlertFrequency"] = "Max Alert Frequency (hours)",
+                ["Plugins.Misc.PaymentGuard.Configure.Fields.MaxAlertFrequency.Hint"] = "Minimum hours between duplicate alerts",
+                ["Plugins.Misc.PaymentGuard.Configure.Fields.LogRetentionDays"] = "Log Retention (days)",
+                ["Plugins.Misc.PaymentGuard.Configure.Fields.LogRetentionDays.Hint"] = "Number of days to retain monitoring logs",
+                ["Plugins.Misc.PaymentGuard.Configure.Fields.AlertRetentionDays"] = "Alert Retention (days)",
+                ["Plugins.Misc.PaymentGuard.Configure.Fields.AlertRetentionDays.Hint"] = "Number of days to retain resolved alerts",
+                ["Plugins.Misc.PaymentGuard.Configure.Fields.EnableAutomaticCleanup"] = "Enable Automatic Cleanup",
+                ["Plugins.Misc.PaymentGuard.Configure.Fields.EnableAutomaticCleanup.Hint"] = "Automatically clean up old logs and alerts",
+                ["Plugins.Misc.PaymentGuard.Configure.Fields.ApiRateLimitPerHour"] = "API Rate Limit (per hour)",
+                ["Plugins.Misc.PaymentGuard.Configure.Fields.ApiRateLimitPerHour.Hint"] = "Maximum API calls per hour per IP address",
+                ["Plugins.Misc.PaymentGuard.Configure.Fields.WhitelistedIPs"] = "Whitelisted IPs",
+                ["Plugins.Misc.PaymentGuard.Configure.Fields.WhitelistedIPs.Hint"] = "Comma-separated list of IP addresses that bypass rate limiting",
+                ["Plugins.Misc.PaymentGuard.Configure.Fields.CacheExpirationMinutes"] = "Cache Expiration (minutes)",
+                ["Plugins.Misc.PaymentGuard.Configure.Fields.CacheExpirationMinutes.Hint"] = "How long to cache script authorization lookups (recommended: 30-120 minutes)",
+
                 // Validation Messages
-                ["Plugins.Misc.PaymentGuard.Fields.LogRetentionDays.Range"] = "Log retention must be between 1 and 365 days",
-                ["Plugins.Misc.PaymentGuard.Fields.AlertRetentionDays.Range"] = "Alert retention must be between 1 and 365 days",
-                ["Plugins.Misc.PaymentGuard.Fields.CacheExpirationMinutes.Range"] = "Cache expiration must be between 1 and 1440 minutes (24 hours)",
-                ["Plugins.Misc.PaymentGuard.Fields.ApiRateLimitPerHour.Range"] = "API rate limit must be between 1 and 100000 requests per hour",
+                ["Plugins.Misc.PaymentGuard.Configure.Fields.LogRetentionDays.Range"] = "Log retention must be between 1 and 365 days",
+                ["Plugins.Misc.PaymentGuard.Configure.Fields.AlertRetentionDays.Range"] = "Alert retention must be between 1 and 365 days",
+                ["Plugins.Misc.PaymentGuard.Configure.Fields.CacheExpirationMinutes.Range"] = "Cache expiration must be between 1 and 1440 minutes (24 hours)",
+                ["Plugins.Misc.PaymentGuard.Configure.Fields.ApiRateLimitPerHour.Range"] = "API rate limit must be between 1 and 100000 requests per hour",
 
 
                 // Script Fields
-                ["Plugins.Misc.PaymentGuard.Fields.SearchScriptUrl"] = "Search Script URL",
-                ["Plugins.Misc.PaymentGuard.Fields.SearchScriptUrl.Hint"] = "Enter script URL to search for",
-                ["Plugins.Misc.PaymentGuard.Fields.SearchIsActive"] = "Search Active Status",
-                ["Plugins.Misc.PaymentGuard.Fields.SearchIsActive.Hint"] = "Filter by active/inactive status",
-                ["Plugins.Misc.PaymentGuard.Fields.SearchRiskLevel"] = "Search Risk Level",
-                ["Plugins.Misc.PaymentGuard.Fields.SearchRiskLevel.Hint"] = "Filter by risk level (Low, Medium, High)",
-                ["Plugins.Misc.PaymentGuard.Fields.SearchSource"] = "Search Source Type",
-                ["Plugins.Misc.PaymentGuard.Fields.SearchSource.Hint"] = "Filter by source type (Internal, Third-party, Payment Gateway, etc.)",
+                ["Plugins.Misc.PaymentGuard.ScriptManagement.Fields.SearchScriptUrl"] = "Search Script URL",
+                ["Plugins.Misc.PaymentGuard.ScriptManagement.Fields.SearchScriptUrl.Hint"] = "Enter script URL to search for",
+                ["Plugins.Misc.PaymentGuard.ScriptManagement.Fields.SearchIsActive"] = "Search Active Status",
+                ["Plugins.Misc.PaymentGuard.ScriptManagement.Fields.SearchIsActive.Hint"] = "Filter by active/inactive status",
+                ["Plugins.Misc.PaymentGuard.ScriptManagement.Fields.SearchRiskLevel"] = "Search Risk Level",
+                ["Plugins.Misc.PaymentGuard.ScriptManagement.Fields.SearchRiskLevel.Hint"] = "Filter by risk level (Low, Medium, High)",
+                ["Plugins.Misc.PaymentGuard.ScriptManagement.Fields.SearchSource"] = "Search Source Type",
+                ["Plugins.Misc.PaymentGuard.ScriptManagement.Fields.SearchSource.Hint"] = "Filter by source type (Internal, Third-party, Payment Gateway, etc.)",
 
-                ["Plugins.Misc.PaymentGuard.Fields.ScriptUrl"] = "Script URL",
-                ["Plugins.Misc.PaymentGuard.Fields.ScriptUrl.Hint"] = "Full URL of the JavaScript file (e.g., https://example.com/script.js)",
-                ["Plugins.Misc.PaymentGuard.Fields.ScriptUrl.Required"] = "Script URL of the JavaScript file required.",
-                ["Plugins.Misc.PaymentGuard.Fields.ScriptUrl.InvalidFormat"] = "Please enter a valid URL format (e.g., https://example.com/script.js).",
-                ["Plugins.Misc.PaymentGuard.Fields.ScriptUrl.MustBeHttps"] = "External script URLs must use HTTPS for security compliance.",
-                ["Plugins.Misc.PaymentGuard.Fields.Purpose"] = "Purpose",
-                ["Plugins.Misc.PaymentGuard.Fields.Purpose.Hint"] = "Brief description of what this script does",
-                ["Plugins.Misc.PaymentGuard.Fields.Purpose.Required"] = "Brief description of file is required.",
-                ["Plugins.Misc.PaymentGuard.Fields.Justification"] = "Business Justification",
-                ["Plugins.Misc.PaymentGuard.Fields.Justification.Hint"] = "Business justification for why this script is necessary (required for PCI DSS compliance)",
-                ["Plugins.Misc.PaymentGuard.Fields.Justification.Required"] = "Business justification of file is required.",
-                ["Plugins.Misc.PaymentGuard.Fields.GenerateHash"] = "Generate SRI Hash",
-                ["Plugins.Misc.PaymentGuard.Fields.GenerateHash.Hint"] = "Automatically generate SRI hash for this script",
-                ["Plugins.Misc.PaymentGuard.Fields.ScriptHash"] = "Script Hash",
-                ["Plugins.Misc.PaymentGuard.Fields.ScriptHash.Hint"] = "SHA-384 hash for Subresource Integrity validation",
-                ["Plugins.Misc.PaymentGuard.Fields.RiskLevel"] = "Risk Level",
-                ["Plugins.Misc.PaymentGuard.Fields.RiskLevel.Hint"] = "Security risk level of this script (Low, Medium, High)",
-                ["Plugins.Misc.PaymentGuard.Fields.Source"] = "Source Type",
-                ["Plugins.Misc.PaymentGuard.Fields.Source.Hint"] = "Where this script originates from (Internal, Third-party, Payment Gateway, etc.)",
-                ["Plugins.Misc.PaymentGuard.Fields.IsActive"] = "Active",
-                ["Plugins.Misc.PaymentGuard.Fields.IsActive.Hint"] = "Whether this script is currently authorized for use",
-                ["Plugins.Misc.PaymentGuard.Fields.AuthorizedBy"] = "Authorized By",
-                ["Plugins.Misc.PaymentGuard.Fields.AuthorizedBy.Hint"] = "User who authorized this script",
-                ["Plugins.Misc.PaymentGuard.Fields.AuthorizedOnUtc"] = "Authorized On",
-                ["Plugins.Misc.PaymentGuard.Fields.AuthorizedOnUtc.Hint"] = "Date and time when this script was authorized",
-                ["Plugins.Misc.PaymentGuard.Fields.LastVerifiedUtc"] = "Last Verified",
-                ["Plugins.Misc.PaymentGuard.Fields.LastVerifiedUtc.Hint"] = "Date and time when this script was last verified for integrity",
+                ["Plugins.Misc.PaymentGuard.ScriptManagement.Fields.ScriptUrl"] = "Script URL",
+                ["Plugins.Misc.PaymentGuard.ScriptManagement.Fields.ScriptUrl.Hint"] = "Full URL of the JavaScript file (e.g., https://example.com/script.js)",
+                ["Plugins.Misc.PaymentGuard.ScriptManagement.Fields.ScriptUrl.Required"] = "Script URL of the JavaScript file required.",
+                ["Plugins.Misc.PaymentGuard.ScriptManagement.Fields.ScriptUrl.InvalidFormat"] = "Please enter a valid URL format (e.g., https://example.com/script.js).",
+                ["Plugins.Misc.PaymentGuard.ScriptManagement.Fields.ScriptUrl.MustBeHttps"] = "External script URLs must use HTTPS for security compliance.",
+                ["Plugins.Misc.PaymentGuard.ScriptManagement.Fields.Purpose"] = "Purpose",
+                ["Plugins.Misc.PaymentGuard.ScriptManagement.Fields.Purpose.Hint"] = "Brief description of what this script does",
+                ["Plugins.Misc.PaymentGuard.ScriptManagement.Fields.Purpose.Required"] = "Brief description of file is required.",
+                ["Plugins.Misc.PaymentGuard.ScriptManagement.Fields.Justification"] = "Business Justification",
+                ["Plugins.Misc.PaymentGuard.ScriptManagement.Fields.Justification.Hint"] = "Business justification for why this script is necessary (required for PCI DSS compliance)",
+                ["Plugins.Misc.PaymentGuard.ScriptManagement.Fields.Justification.Required"] = "Business justification of file is required.",
+                ["Plugins.Misc.PaymentGuard.ScriptManagement.Fields.GenerateHash"] = "Generate SRI Hash",
+                ["Plugins.Misc.PaymentGuard.ScriptManagement.Fields.GenerateHash.Hint"] = "Automatically generate SRI hash for this script",
+                ["Plugins.Misc.PaymentGuard.ScriptManagement.Fields.ScriptHash"] = "Script Hash",
+                ["Plugins.Misc.PaymentGuard.ScriptManagement.Fields.ScriptHash.Hint"] = "SHA-384 hash for Subresource Integrity validation",
+                ["Plugins.Misc.PaymentGuard.ScriptManagement.Fields.RiskLevel"] = "Risk Level",
+                ["Plugins.Misc.PaymentGuard.ScriptManagement.Fields.RiskLevel.Hint"] = "Security risk level of this script (Low, Medium, High)",
+                ["Plugins.Misc.PaymentGuard.ScriptManagement.Fields.Source"] = "Source Type",
+                ["Plugins.Misc.PaymentGuard.ScriptManagement.Fields.Source.Hint"] = "Where this script originates from (Internal, Third-party, Payment Gateway, etc.)",
+                ["Plugins.Misc.PaymentGuard.ScriptManagement.Fields.IsActive"] = "Active",
+                ["Plugins.Misc.PaymentGuard.ScriptManagement.Fields.IsActive.Hint"] = "Whether this script is currently authorized for use",
+                ["Plugins.Misc.PaymentGuard.ScriptManagement.Fields.AuthorizedBy"] = "Authorized By",
+                ["Plugins.Misc.PaymentGuard.ScriptManagement.Fields.AuthorizedBy.Hint"] = "User who authorized this script",
+                ["Plugins.Misc.PaymentGuard.ScriptManagement.Fields.AuthorizedOnUtc"] = "Authorized On",
+                ["Plugins.Misc.PaymentGuard.ScriptManagement.Fields.AuthorizedOnUtc.Hint"] = "Date and time when this script was authorized",
+                ["Plugins.Misc.PaymentGuard.ScriptManagement.Fields.LastVerifiedUtc"] = "Last Verified",
+                ["Plugins.Misc.PaymentGuard.ScriptManagement.Fields.LastVerifiedUtc.Hint"] = "Date and time when this script was last verified for integrity",
+
 
                 // Compliance Report Resources  
                 ["Plugins.Misc.PaymentGuard.ComplianceReport.PageTitle"] = "PaymentGuard Compliance Report",
@@ -371,34 +403,36 @@ namespace Nop.Plugin.Misc.PaymentGuard
                 ["Plugins.Misc.PaymentGuard.ComplianceReport.Requirements"] = "6.4.3, 11.6.1",
                 
                 // Compliance Alert Fields
-                ["Plugins.Misc.PaymentGuard.Fields.AlertType"] = "Alert Type",
-                ["Plugins.Misc.PaymentGuard.Fields.AlertType.Hint"] = "The type of security alert",
-                ["Plugins.Misc.PaymentGuard.Fields.AlertLevel"] = "Alert Level",
-                ["Plugins.Misc.PaymentGuard.Fields.AlertLevel.Hint"] = "The severity level of the alert",
-                ["Plugins.Misc.PaymentGuard.Fields.Message"] = "Message",
-                ["Plugins.Misc.PaymentGuard.Fields.Message.Hint"] = "Brief description of the alert",
-                ["Plugins.Misc.PaymentGuard.Fields.Details"] = "Details",
-                ["Plugins.Misc.PaymentGuard.Fields.Details.Hint"] = "Detailed information about the alert",
-                ["Plugins.Misc.PaymentGuard.Fields.IsResolved"] = "Resolved",
-                ["Plugins.Misc.PaymentGuard.Fields.IsResolved.Hint"] = "Whether this alert has been resolved",
-                ["Plugins.Misc.PaymentGuard.Fields.ResolvedBy"] = "Resolved By",
-                ["Plugins.Misc.PaymentGuard.Fields.ResolvedBy.Hint"] = "User who resolved this alert",
-                ["Plugins.Misc.PaymentGuard.Fields.ResolvedOnUtc"] = "Resolved On",
-                ["Plugins.Misc.PaymentGuard.Fields.ResolvedOnUtc.Hint"] = "Date and time when this alert was resolved",
-                ["Plugins.Misc.PaymentGuard.Fields.EmailSent"] = "Email Sent",
-                ["Plugins.Misc.PaymentGuard.Fields.EmailSent.Hint"] = "Whether an email notification was sent",
-                ["Plugins.Misc.PaymentGuard.Fields.EmailSentOnUtc"] = "Email Sent On",
-                ["Plugins.Misc.PaymentGuard.Fields.EmailSentOnUtc.Hint"] = "Date and time when email was sent",
-                ["Plugins.Misc.PaymentGuard.Fields.CreatedOnUtc"] = "Created On",
-                ["Plugins.Misc.PaymentGuard.Fields.CreatedOnUtc.Hint"] = "Date and time when this alert was created",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.AlertType"] = "Alert Type",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.AlertType.Hint"] = "The type of security alert",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.AlertLevel"] = "Alert Level",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.AlertLevel.Hint"] = "The severity level of the alert",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.Message"] = "Message",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.Message.Hint"] = "Brief description of the alert",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.Details"] = "Details",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.Details.Hint"] = "Detailed information about the alert",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.IsResolved"] = "Resolved",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.IsResolved.Hint"] = "Whether this alert has been resolved",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.ResolvedBy"] = "Resolved By",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.ResolvedBy.Hint"] = "User who resolved this alert",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.ResolvedOnUtc"] = "Resolved On",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.ResolvedOnUtc.Hint"] = "Date and time when this alert was resolved",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.EmailSent"] = "Email Sent",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.EmailSent.Hint"] = "Whether an email notification was sent",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.EmailSentOnUtc"] = "Email Sent On",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.EmailSentOnUtc.Hint"] = "Date and time when email was sent",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.CreatedOnUtc"] = "Created On",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.CreatedOnUtc.Hint"] = "Date and time when this alert was created",
 
                 // Search Fields for Alerts
-                ["Plugins.Misc.PaymentGuard.Fields.SearchAlertType"] = "Alert Type",
-                ["Plugins.Misc.PaymentGuard.Fields.SearchAlertType.Hint"] = "Filter by alert type",
-                ["Plugins.Misc.PaymentGuard.Fields.SearchAlertLevel"] = "Alert Level",
-                ["Plugins.Misc.PaymentGuard.Fields.SearchAlertLevel.Hint"] = "Filter by alert severity level",
-                ["Plugins.Misc.PaymentGuard.Fields.SearchIsResolved"] = "Resolution Status",
-                ["Plugins.Misc.PaymentGuard.Fields.SearchIsResolved.Hint"] = "Filter by resolution status",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.SearchAlertType"] = "Alert Type",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.SearchAlertType.Hint"] = "Filter by alert type",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.SearchAlertLevel"] = "Alert Level",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.SearchAlertLevel.Hint"] = "Filter by alert severity level",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.SearchIsResolved"] = "Resolution Status",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.SearchIsResolved.Hint"] = "Filter by resolution status",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.SearchStoreId"] = "Search Store",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.SearchStoreId.Hint"] = "Filter by store",
 
                 // Monitoring Log Fields
                 ["Plugins.Misc.PaymentGuard.MonitoringLogs.View"] = "View",
@@ -413,53 +447,34 @@ namespace Nop.Plugin.Misc.PaymentGuard
                 ["Plugins.Misc.PaymentGuard.MonitoringLogs.EnterValidUrl"] = "Please enter a valid URL",
                 ["Plugins.Misc.PaymentGuard.MonitoringLogs.ErrorPerformingCheck"] = "Error performing manual check",
 
-                ["Plugins.Misc.PaymentGuard.Fields.PageUrl"] = "Page URL",
-                ["Plugins.Misc.PaymentGuard.Fields.PageUrl.Hint"] = "The URL of the monitored page",
-                ["Plugins.Misc.PaymentGuard.Fields.TotalScriptsFound"] = "Total Scripts",
-                ["Plugins.Misc.PaymentGuard.Fields.TotalScriptsFound.Hint"] = "Total number of scripts found",
-                ["Plugins.Misc.PaymentGuard.Fields.AuthorizedScriptsCount"] = "Authorized Scripts",
-                ["Plugins.Misc.PaymentGuard.Fields.AuthorizedScriptsCount.Hint"] = "Number of authorized scripts",
-                ["Plugins.Misc.PaymentGuard.Fields.UnauthorizedScriptsCount"] = "Unauthorized Scripts",
-                ["Plugins.Misc.PaymentGuard.Fields.UnauthorizedScriptsCount.Hint"] = "Number of unauthorized scripts",
-                ["Plugins.Misc.PaymentGuard.Fields.HasUnauthorizedScripts"] = "Has Issues",
-                ["Plugins.Misc.PaymentGuard.Fields.HasUnauthorizedScripts.Hint"] = "Whether unauthorized scripts were detected",
-                ["Plugins.Misc.PaymentGuard.Fields.CheckedOnUtc"] = "Checked On",
-                ["Plugins.Misc.PaymentGuard.Fields.CheckedOnUtc.Hint"] = "Date and time when check was performed",
-                ["Plugins.Misc.PaymentGuard.Fields.CheckType"] = "Check Type",
-                ["Plugins.Misc.PaymentGuard.Fields.CheckType.Hint"] = "Type of monitoring check",
-                ["Plugins.Misc.PaymentGuard.Fields.AlertSent"] = "Alert Sent",
-                ["Plugins.Misc.PaymentGuard.Fields.AlertSent.Hint"] = "Whether an alert was sent",
+                ["Plugins.Misc.PaymentGuard.MonitoringLogs.Fields.PageUrl"] = "Page URL",
+                ["Plugins.Misc.PaymentGuard.MonitoringLogs.Fields.PageUrl.Hint"] = "The URL of the monitored page",
+                ["Plugins.Misc.PaymentGuard.MonitoringLogs.Fields.TotalScriptsFound"] = "Total Scripts",
+                ["Plugins.Misc.PaymentGuard.MonitoringLogs.Fields.TotalScriptsFound.Hint"] = "Total number of scripts found",
+                ["Plugins.Misc.PaymentGuard.MonitoringLogs.Fields.AuthorizedScriptsCount"] = "Authorized Scripts",
+                ["Plugins.Misc.PaymentGuard.MonitoringLogs.Fields.AuthorizedScriptsCount.Hint"] = "Number of authorized scripts",
+                ["Plugins.Misc.PaymentGuard.MonitoringLogs.Fields.UnauthorizedScriptsCount"] = "Unauthorized Scripts",
+                ["Plugins.Misc.PaymentGuard.MonitoringLogs.Fields.UnauthorizedScriptsCount.Hint"] = "Number of unauthorized scripts",
+                ["Plugins.Misc.PaymentGuard.MonitoringLogs.Fields.HasUnauthorizedScripts"] = "Has Issues",
+                ["Plugins.Misc.PaymentGuard.MonitoringLogs.Fields.HasUnauthorizedScripts.Hint"] = "Whether unauthorized scripts were detected",
+                ["Plugins.Misc.PaymentGuard.MonitoringLogs.Fields.CheckedOnUtc"] = "Checked On",
+                ["Plugins.Misc.PaymentGuard.MonitoringLogs.Fields.CheckedOnUtc.Hint"] = "Date and time when check was performed",
+                ["Plugins.Misc.PaymentGuard.MonitoringLogs.Fields.CheckType"] = "Check Type",
+                ["Plugins.Misc.PaymentGuard.MonitoringLogs.Fields.CheckType.Hint"] = "Type of monitoring check",
+                ["Plugins.Misc.PaymentGuard.MonitoringLogs.Fields.AlertSent"] = "Alert Sent",
+                ["Plugins.Misc.PaymentGuard.MonitoringLogs.Fields.AlertSent.Hint"] = "Whether an alert was sent",
 
                 // Search Fields for Monitoring Logs
-                ["Plugins.Misc.PaymentGuard.Fields.SearchPageUrl"] = "Page URL",
-                ["Plugins.Misc.PaymentGuard.Fields.SearchPageUrl.Hint"] = "Filter by page URL",
-                ["Plugins.Misc.PaymentGuard.Fields.SearchHasUnauthorizedScripts"] = "Compliance Status",
-                ["Plugins.Misc.PaymentGuard.Fields.SearchHasUnauthorizedScripts.Hint"] = "Filter by compliance status",
-                ["Plugins.Misc.PaymentGuard.Fields.SearchDateFrom"] = "Date From",
-                ["Plugins.Misc.PaymentGuard.Fields.SearchDateFrom.Hint"] = "Filter from this date",
-                ["Plugins.Misc.PaymentGuard.Fields.SearchDateTo"] = "Date To",
-                ["Plugins.Misc.PaymentGuard.Fields.SearchDateTo.Hint"] = "Filter to this date",
-
-                // Page Titles
-                ["Plugins.Misc.PaymentGuard.AddNewScript"] = "Add New Authorized Script",
-                ["Plugins.Misc.PaymentGuard.EditScript"] = "Edit Authorized Script",
-                ["Plugins.Misc.PaymentGuard.BackToList"] = "back to script list",
-                ["Plugins.Misc.PaymentGuard.ManageScripts"] = "Manage Scripts",
-                ["Plugins.Misc.PaymentGuard.Alerts.List"] = "Compliance Alerts",
-                ["Plugins.Misc.PaymentGuard.Alerts.Details"] = "Alert Details",
-                ["Plugins.Misc.PaymentGuard.MonitoringLogs.List"] = "Monitoring Logs",
-                ["Plugins.Misc.PaymentGuard.MonitoringLogs.Details"] = "Log Details",
-                ["Plugins.Misc.PaymentGuard.BackToAlerts"] = "back to alerts list",
-                ["Plugins.Misc.PaymentGuard.BackToLogs"] = "back to monitoring logs",
-
-                // Configuration Sections
-                ["Plugins.Misc.PaymentGuard.Configuration.GeneralSettings"] = "General Settings",
-                ["Plugins.Misc.PaymentGuard.Configuration.AlertSettings"] = "Alert Settings",
-                ["Plugins.Misc.PaymentGuard.Configuration.SecuritySettings"] = "Security Settings",
-                ["Plugins.Misc.PaymentGuard.Configuration.MaintenanceSettings"] = "Maintenance Settings",
-                ["Plugins.Misc.PaymentGuard.Configuration.MaintenanceSettings.Help"] = "Configure automatic cleanup and caching behavior",
-                ["Plugins.Misc.PaymentGuard.Configuration.ApiSettings"] = "API Settings",
-                ["Plugins.Misc.PaymentGuard.Configuration.ApiSettings.Help"] = "Configure API rate limiting and security settings",
+                ["Plugins.Misc.PaymentGuard.MonitoringLogs.Fields.SearchPageUrl"] = "Page URL",
+                ["Plugins.Misc.PaymentGuard.MonitoringLogs.Fields.SearchPageUrl.Hint"] = "Filter by page URL",
+                ["Plugins.Misc.PaymentGuard.MonitoringLogs.Fields.SearchHasUnauthorizedScripts"] = "Compliance Status",
+                ["Plugins.Misc.PaymentGuard.MonitoringLogs.Fields.SearchHasUnauthorizedScripts.Hint"] = "Filter by compliance status",
+                ["Plugins.Misc.PaymentGuard.MonitoringLogs.Fields.SearchDateFrom"] = "Date From",
+                ["Plugins.Misc.PaymentGuard.MonitoringLogs.Fields.SearchDateFrom.Hint"] = "Filter from this date",
+                ["Plugins.Misc.PaymentGuard.MonitoringLogs.MonitoringLogs.Fields.SearchDateTo"] = "Date To",
+                ["Plugins.Misc.PaymentGuard.MonitoringLogs.Fields.SearchDateTo.Hint"] = "Filter to this date",
+                ["Plugins.Misc.PaymentGuard.MonitoringLogs.Fields.SearchStoreId"] = "Search Store",
+                ["Plugins.Misc.PaymentGuard.MonitoringLogs.Fields.SearchStoreId.Hint"] = "Filter by store",
 
                 // Dashboard Labels
                 ["Plugins.Misc.PaymentGuard.Dashboard.PageTitle"] = "PaymentGuard Dashboard",
@@ -517,7 +532,6 @@ namespace Nop.Plugin.Misc.PaymentGuard
                 ["Plugins.Misc.PaymentGuard.Dashboard.Last30Days"] = "Last 30 Days",
                 ["Plugins.Misc.PaymentGuard.Dashboard.Last90Days"] = "Last 90 Days",
 
-
                 // Action Messages
                 ["Plugins.Misc.PaymentGuard.ScriptAdded"] = "Script has been added successfully",
                 ["Plugins.Misc.PaymentGuard.ScriptUpdated"] = "Script has been updated successfully",
@@ -571,6 +585,12 @@ namespace Nop.Plugin.Misc.PaymentGuard
         {
             // Remove settings
             await _settingService.DeleteSettingAsync<PaymentGuardSettings>();
+
+            if (_widgetSettings.ActiveWidgetSystemNames.Contains(PaymentGuardDefaults.SystemName))
+            {
+                _widgetSettings.ActiveWidgetSystemNames.Remove(PaymentGuardDefaults.SystemName);
+                await _settingService.SaveSettingAsync(_widgetSettings);
+            }
 
             // Remove scheduled task
             var task = await _scheduleTaskService.GetTaskByTypeAsync("Nop.Plugin.Misc.PaymentGuard.Tasks.MonitoringTask");

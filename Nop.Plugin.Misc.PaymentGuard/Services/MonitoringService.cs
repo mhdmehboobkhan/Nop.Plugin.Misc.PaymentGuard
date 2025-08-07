@@ -273,15 +273,12 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
             return report;
         }
 
-        /// <summary>
-        /// Enhanced script validation with SRI checking
-        /// </summary>
-        public async Task<ScriptValidationResult> ValidateScriptWithSRIAsync(string scriptUrl, string integrity = null)
+        public async Task<ScriptValidationResult> ValidateScriptWithSRIAsync(int storeId, string scriptUrl, string integrity = null)
         {
             var result = new ScriptValidationResult { ScriptUrl = scriptUrl };
 
             // 1. Check if script is authorized
-            var isAuthorized = await _authorizedScriptService.IsScriptAuthorizedAsync(scriptUrl, 1); // TODO: pass actual store ID
+            var isAuthorized = await _authorizedScriptService.IsScriptAuthorizedAsync(scriptUrl, storeId); // TODO: pass actual store ID
             result.IsAuthorized = isAuthorized;
 
             // 2. If script has integrity attribute, validate it

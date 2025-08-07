@@ -4,6 +4,7 @@ using Nop.Core;
 using Nop.Core.Caching;
 using Nop.Data;
 using Nop.Plugin.Misc.PaymentGuard.Domain;
+using Nop.Plugin.Misc.PaymentGuard.Helpers;
 
 namespace Nop.Plugin.Misc.PaymentGuard.Services
 {
@@ -14,6 +15,7 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
         private readonly IRepository<AuthorizedScript> _authorizedScriptRepository;
         private readonly IStaticCacheManager _staticCacheManager;
         private readonly HttpClient _httpClient;
+        private readonly SRIHelper _sriHelper;
 
         #endregion
 
@@ -21,11 +23,13 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
 
         public AuthorizedScriptService(IRepository<AuthorizedScript> authorizedScriptRepository,
             IStaticCacheManager staticCacheManager,
-            HttpClient httpClient)
+            HttpClient httpClient,
+            SRIHelper sriHelper)
         {
             _authorizedScriptRepository = authorizedScriptRepository;
             _staticCacheManager = staticCacheManager;
             _httpClient = httpClient;
+            _sriHelper = sriHelper;
         }
 
         #endregion
@@ -150,6 +154,11 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
             return await _staticCacheManager.GetAsync(cacheKey, async () =>
             {
                 var script = await GetAuthorizedScriptByUrlAsync(scriptUrl, storeId);
+
+                // load with storeId 0 if not found
+                if (script == null && storeId > 0)
+                    script = await GetAuthorizedScriptByUrlAsync(scriptUrl, 0);
+
                 return script != null && script.IsActive;
             });
         }
@@ -172,28 +181,9 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
             return allScripts.Where(script => script.Domain == domain).ToList();
         }
 
-        public virtual async Task<string> GenerateScriptHashAsync(string scriptUrl)
-        {
-            try
-            {
-                var response = await _httpClient.GetAsync(scriptUrl);
-                response.EnsureSuccessStatusCode();
-
-                var scriptContent = await response.Content.ReadAsStringAsync();
-
-                using var sha384 = SHA384.Create();
-                var hashBytes = sha384.ComputeHash(Encoding.UTF8.GetBytes(scriptContent));
-                return Convert.ToBase64String(hashBytes);
-            }
-            catch (Exception)
-            {
-                return null;
-            }
-        }
-
         public virtual async Task<bool> ValidateScriptIntegrityAsync(string scriptUrl, string expectedHash)
         {
-            var currentHash = await GenerateScriptHashAsync(scriptUrl);
+            var currentHash = await _sriHelper.GenerateExternalSRIHashAsync(scriptUrl);
             return currentHash != null && currentHash == expectedHash;
         }
 

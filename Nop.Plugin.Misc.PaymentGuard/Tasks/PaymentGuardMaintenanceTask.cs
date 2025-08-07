@@ -1,5 +1,6 @@
 ﻿using Nop.Data;
 using Nop.Plugin.Misc.PaymentGuard.Domain;
+using Nop.Plugin.Misc.PaymentGuard.Helpers;
 using Nop.Plugin.Misc.PaymentGuard.Services;
 using Nop.Services.Configuration;
 using Nop.Services.Logging;
@@ -17,6 +18,7 @@ namespace Nop.Plugin.Misc.PaymentGuard.Tasks
         private readonly ISettingService _settingService;
         private readonly IStoreService _storeService;
         private readonly ILogger _logger;
+        private readonly SRIHelper _sriHelper;
 
         #endregion
 
@@ -26,13 +28,15 @@ namespace Nop.Plugin.Misc.PaymentGuard.Tasks
             IEmailAlertService emailAlertService,
             ISettingService settingService,
             IStoreService storeService,
-            ILogger logger)
+            ILogger logger,
+            SRIHelper sriHelper)
         {
             _authorizedScriptService = authorizedScriptService;
             _emailAlertService = emailAlertService;
             _settingService = settingService;
             _storeService = storeService;
             _logger = logger;
+            _sriHelper = sriHelper;
         }
 
         #endregion
@@ -76,7 +80,7 @@ namespace Nop.Plugin.Misc.PaymentGuard.Tasks
                                 if (!isValid)
                                 {
                                     // Try to update the hash
-                                    var newHash = await _authorizedScriptService.GenerateScriptHashAsync(script.ScriptUrl);
+                                    var newHash = await _sriHelper.GenerateExternalSRIHashAsync(script.ScriptUrl);
                                     if (!string.IsNullOrEmpty(newHash))
                                     {
                                         await _authorizedScriptService.UpdateScriptHashAsync(script.Id, newHash);

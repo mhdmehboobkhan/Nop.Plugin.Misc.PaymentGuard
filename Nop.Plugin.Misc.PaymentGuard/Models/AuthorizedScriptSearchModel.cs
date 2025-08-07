@@ -6,16 +6,16 @@ namespace Nop.Plugin.Misc.PaymentGuard.Models
 {
     public record AuthorizedScriptSearchModel : BaseSearchModel
     {
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Fields.SearchScriptUrl")]
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.ScriptManagement.Fields.SearchScriptUrl")]
         public string SearchScriptUrl { get; set; }
 
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Fields.SearchIsActive")]
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.ScriptManagement.Fields.SearchIsActive")]
         public int SearchIsActiveId { get; set; }
 
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Fields.SearchRiskLevel")]
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.ScriptManagement.Fields.SearchRiskLevel")]
         public int SearchRiskLevel { get; set; }
 
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Fields.SearchSource")]
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.ScriptManagement.Fields.SearchSource")]
         public string SearchSource { get; set; }
 
         public IList<SelectListItem> AvailableActiveOptions { get; set; } = new List<SelectListItem>();

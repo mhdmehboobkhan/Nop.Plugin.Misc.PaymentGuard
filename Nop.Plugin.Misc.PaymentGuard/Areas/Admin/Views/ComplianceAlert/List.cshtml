@@ -94,37 +94,37 @@
                             {
                                 new ColumnProperty(nameof(ComplianceAlertModel.AlertType))
                                 {
-                                    Title = T("Plugins.Misc.PaymentGuard.Fields.AlertType").Text,
+                                    Title = T("Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.AlertType").Text,
                                     Width = "120"
                                 },
                                 new ColumnProperty(nameof(ComplianceAlertModel.AlertLevel))
                                 {
-                                    Title = T("Plugins.Misc.PaymentGuard.Fields.AlertLevel").Text,
+                                    Title = T("Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.AlertLevel").Text,
                                     Width = "100",
                                     Render = new RenderCustom("renderAlertLevel")
                                 },
                                 new ColumnProperty(nameof(ComplianceAlertModel.Message))
                                 {
-                                    Title = T("Plugins.Misc.PaymentGuard.Fields.Message").Text,
+                                    Title = T("Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.Message").Text,
                                     Width = "300",
                                     Render = new RenderCustom("renderMessage")
                                 },
                                 new ColumnProperty(nameof(ComplianceAlertModel.ScriptUrl))
                                 {
-                                    Title = T("Plugins.Misc.PaymentGuard.Fields.ScriptUrl").Text,
+                                    Title = T("Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.ScriptUrl").Text,
                                     Width = "200",
                                     Render = new RenderCustom("renderScriptUrl")
                                 },
                                 new ColumnProperty(nameof(ComplianceAlertModel.IsResolved))
                                 {
-                                    Title = T("Plugins.Misc.PaymentGuard.Fields.IsResolved").Text,
+                                    Title = T("Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.IsResolved").Text,
                                     Width = "100",
                                     ClassName = NopColumnClassDefaults.CenterAll,
                                     Render = new RenderCustom("renderStatus")
                                 },
                                 new ColumnProperty(nameof(ComplianceAlertModel.CreatedOnUtc))
                                 {
-                                    Title = T("Plugins.Misc.PaymentGuard.Fields.CreatedOnUtc").Text,
+                                    Title = T("Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.CreatedOnUtc").Text,
                                     Width = "150",
                                     Render = new RenderDate()
                                 },

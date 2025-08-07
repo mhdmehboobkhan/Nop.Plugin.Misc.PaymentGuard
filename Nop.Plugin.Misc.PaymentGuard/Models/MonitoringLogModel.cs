@@ -5,28 +5,28 @@ namespace Nop.Plugin.Misc.PaymentGuard.Models
 {
     public record MonitoringLogModel : BaseNopEntityModel
     {
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Fields.PageUrl")]
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.MonitoringLogs.Fields.PageUrl")]
         public string PageUrl { get; set; }
 
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Fields.TotalScriptsFound")]
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.MonitoringLogs.Fields.TotalScriptsFound")]
         public int TotalScriptsFound { get; set; }
 
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Fields.AuthorizedScriptsCount")]
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.MonitoringLogs.Fields.AuthorizedScriptsCount")]
         public int AuthorizedScriptsCount { get; set; }
 
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Fields.UnauthorizedScriptsCount")]
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.MonitoringLogs.Fields.UnauthorizedScriptsCount")]
         public int UnauthorizedScriptsCount { get; set; }
 
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Fields.HasUnauthorizedScripts")]
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.MonitoringLogs.Fields.HasUnauthorizedScripts")]
         public bool HasUnauthorizedScripts { get; set; }
 
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Fields.CheckedOnUtc")]
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.MonitoringLogs.Fields.CheckedOnUtc")]
         public DateTime CheckedOnUtc { get; set; }
 
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Fields.CheckType")]
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.MonitoringLogs.Fields.CheckType")]
         public string CheckType { get; set; }
 
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Fields.AlertSent")]
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.MonitoringLogs.Fields.AlertSent")]
         public bool AlertSent { get; set; }
 
         public IList<string> DetectedScripts { get; set; } = new List<string>();

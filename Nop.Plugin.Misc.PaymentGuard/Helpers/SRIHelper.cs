@@ -14,14 +14,13 @@ namespace Nop.Plugin.Misc.PaymentGuard.Helpers
 
         private readonly IWebHostEnvironment _webHostEnvironment;
         private readonly IWebHelper _webHelper;
-        private static readonly Dictionary<string, string> _hashCache = new();
-        private static readonly object _lockObject = new();
 
         #endregion
 
         #region Ctor
 
-        public SRIHelper(IWebHostEnvironment webHostEnvironment, IWebHelper webHelper)
+        public SRIHelper(IWebHostEnvironment webHostEnvironment, 
+            IWebHelper webHelper)
         {
             _webHostEnvironment = webHostEnvironment;
             _webHelper = webHelper;
@@ -43,7 +42,13 @@ namespace Nop.Plugin.Misc.PaymentGuard.Helpers
                 virtualPath = virtualPath.Substring(2);
             }
 
-            return Path.Combine(_webHostEnvironment.WebRootPath, virtualPath.Replace('/', Path.DirectorySeparatorChar));
+            var rootPath = _webHostEnvironment.WebRootPath;
+            if (virtualPath.ToLower().Contains("plugins")) 
+            {
+                rootPath = _webHostEnvironment.ContentRootPath;
+            }
+
+            return Path.Combine(rootPath, virtualPath.Replace('/', Path.DirectorySeparatorChar));
         }
 
         /// <summary>
@@ -52,16 +57,21 @@ namespace Nop.Plugin.Misc.PaymentGuard.Helpers
         /// <param name="content">File content</param>
         /// <param name="algorithm">Hash algorithm</param>
         /// <returns>Base64 encoded hash</returns>
-        private static string GenerateHash(string content, string algorithm)
+        private static string GenerateHash(object content, string algorithm)
         {
-            var bytes = Encoding.UTF8.GetBytes(content);
+            byte[] bytes = content switch
+            {
+                string str => Encoding.UTF8.GetBytes(str),
+                byte[] byteArray => byteArray,
+                _ => throw new ArgumentException("Content must be either string or byte array")
+            };
 
             return algorithm.ToLower() switch
             {
                 "sha256" => Convert.ToBase64String(SHA256.HashData(bytes)),
                 "sha384" => Convert.ToBase64String(SHA384.HashData(bytes)),
                 "sha512" => Convert.ToBase64String(SHA512.HashData(bytes)),
-                _ => Convert.ToBase64String(SHA384.HashData(bytes)) // Default to SHA384
+                _ => Convert.ToBase64String(SHA384.HashData(bytes)) // Default
             };
         }
 
@@ -80,15 +90,6 @@ namespace Nop.Plugin.Misc.PaymentGuard.Helpers
             if (string.IsNullOrEmpty(scriptPath))
                 return string.Empty;
 
-            var cacheKey = $"{scriptPath}_{algorithm}";
-
-            // Check cache first
-            lock (_lockObject)
-            {
-                if (_hashCache.TryGetValue(cacheKey, out var cachedHash))
-                    return cachedHash;
-            }
-
             try
             {
                 // Convert virtual path to physical path
@@ -103,13 +104,6 @@ namespace Nop.Plugin.Misc.PaymentGuard.Helpers
                 // Generate hash
                 var hash = GenerateHash(fileContent, algorithm);
                 var sriHash = $"{algorithm}-{hash}";
-
-                // Cache the result
-                lock (_lockObject)
-                {
-                    _hashCache[cacheKey] = sriHash;
-                }
-
                 return sriHash;
             }
             catch (Exception)
@@ -130,69 +124,21 @@ namespace Nop.Plugin.Misc.PaymentGuard.Helpers
             if (string.IsNullOrEmpty(scriptUrl))
                 return string.Empty;
 
-            var cacheKey = $"{scriptUrl}_{algorithm}";
-
-            // Check cache first
-            lock (_lockObject)
-            {
-                if (_hashCache.TryGetValue(cacheKey, out var cachedHash))
-                    return cachedHash;
-            }
-
             try
             {
                 using var httpClient = new HttpClient();
                 httpClient.Timeout = TimeSpan.FromSeconds(10); // Set timeout
 
-                var content = await httpClient.GetStringAsync(scriptUrl);
-                var hash = GenerateHash(content, algorithm);
+                var contentBytes = await httpClient.GetByteArrayAsync(scriptUrl);
+                //var content = await httpClient.GetStringAsync(scriptUrl);
+                var hash = GenerateHash(contentBytes, algorithm);
                 var sriHash = $"{algorithm}-{hash}";
-
-                // Cache the result
-                lock (_lockObject)
-                {
-                    _hashCache[cacheKey] = sriHash;
-                }
-
                 return sriHash;
             }
             catch (Exception)
             {
                 // Return empty string on error - SRI is optional
                 return string.Empty;
-            }
-        }
-
-        /// <summary>
-        /// Clear SRI hash cache (useful after file updates)
-        /// </summary>
-        public virtual void ClearCache()
-        {
-            lock (_lockObject)
-            {
-                _hashCache.Clear();
-            }
-        }
-
-        /// <summary>
-        /// Clear specific hash from cache
-        /// </summary>
-        /// <param name="scriptPath">Script path to clear</param>
-        public virtual void ClearCache(string scriptPath)
-        {
-            if (string.IsNullOrEmpty(scriptPath))
-                return;
-
-            lock (_lockObject)
-            {
-                var keysToRemove = _hashCache.Keys
-                    .Where(key => key.StartsWith(scriptPath))
-                    .ToList();
-
-                foreach (var key in keysToRemove)
-                {
-                    _hashCache.Remove(key);
-                }
             }
         }
 

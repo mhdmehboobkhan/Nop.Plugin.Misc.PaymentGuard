@@ -6,17 +6,20 @@ namespace Nop.Plugin.Misc.PaymentGuard.Models
 {
     public record MonitoringLogSearchModel : BaseSearchModel
     {
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Fields.SearchPageUrl")]
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.MonitoringLogs.Fields.SearchPageUrl")]
         public string SearchPageUrl { get; set; }
 
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Fields.SearchHasUnauthorizedScripts")]
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.MonitoringLogs.Fields.SearchHasUnauthorizedScripts")]
         public string SearchHasUnauthorizedScripts { get; set; }
 
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Fields.SearchDateFrom")]
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.MonitoringLogs.Fields.SearchDateFrom")]
         public DateTime? SearchDateFrom { get; set; }
 
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Fields.SearchDateTo")]
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.MonitoringLogs.Fields.SearchDateTo")]
         public DateTime? SearchDateTo { get; set; }
+
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.MonitoringLogs.Fields.SearchLogStoreId")]
+        public int SearchStoreId { get; set; }
 
         public IList<SelectListItem> AvailableUnauthorizedOptions { get; set; } = new List<SelectListItem>();
     }

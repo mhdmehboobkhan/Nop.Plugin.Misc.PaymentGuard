@@ -7,39 +7,39 @@ namespace Nop.Plugin.Misc.PaymentGuard.Models
 {
     public record AuthorizedScriptModel : BaseNopEntityModel
     {
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Fields.ScriptUrl")]
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.ScriptManagement.Fields.ScriptUrl")]
         public string ScriptUrl { get; set; }
 
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Fields.ScriptHash")]
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.ScriptManagement.Fields.ScriptHash")]
         public string ScriptHash { get; set; }
 
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Fields.Purpose")]
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.ScriptManagement.Fields.Purpose")]
         public string Purpose { get; set; }
 
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Fields.Justification")]
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.ScriptManagement.Fields.Justification")]
         public string Justification { get; set; }
 
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Fields.RiskLevel")]
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.ScriptManagement.Fields.RiskLevel")]
         public int RiskLevel { get; set; }
         
         public string RiskLevelText { get; set; }
 
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Fields.IsActive")]
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.ScriptManagement.Fields.IsActive")]
         public bool IsActive { get; set; }
 
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Fields.AuthorizedBy")]
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.ScriptManagement.Fields.AuthorizedBy")]
         public string AuthorizedBy { get; set; }
 
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Fields.AuthorizedOnUtc")]
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.ScriptManagement.Fields.AuthorizedOnUtc")]
         public DateTime AuthorizedOnUtc { get; set; }
 
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Fields.LastVerifiedUtc")]
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.ScriptManagement.Fields.LastVerifiedUtc")]
         public DateTime LastVerifiedUtc { get; set; }
 
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Fields.Source")]
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.ScriptManagement.Fields.Source")]
         public string Source { get; set; }
 
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Fields.GenerateHash")]
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.ScriptManagement.Fields.GenerateHash")]
         public bool GenerateHash { get; set; }
 
         public IList<SelectListItem> AvailableRiskLevels { get; set; } = new List<SelectListItem>();
