@@ -1,4 +1,5 @@
-﻿using Nop.Web.Framework.Models;
+﻿using Microsoft.AspNetCore.Mvc.Rendering;
+using Nop.Web.Framework.Models;
 using Nop.Web.Framework.Mvc.ModelBinding;
 
 namespace Nop.Plugin.Misc.PaymentGuard.Models
@@ -18,9 +19,89 @@ namespace Nop.Plugin.Misc.PaymentGuard.Models
         public int TotalChecksPerformed { get; set; }
 
         public int AlertsGenerated { get; set; }
+        
+        public int SelectedDays { get; set; }
 
         public IList<string> MostCommonUnauthorizedScripts { get; set; } = new List<string>();
 
         public IList<string> RecentAlerts { get; set; } = new List<string>();
+
+        public IList<SelectListItem> AvailableDayOptions { get; set; } = new List<SelectListItem>();
+
+        // Advanced Reporting Data
+        public IList<ComplianceChartDataPoint> ComplianceHistoryData { get; set; } = new List<ComplianceChartDataPoint>();
+
+        public IList<AlertTypeChartData> AlertTypeDistribution { get; set; } = new List<AlertTypeChartData>();
+
+        public IList<MonitoringTrendData> MonitoringTrends { get; set; } = new List<MonitoringTrendData>();
+
+        public IList<RiskLevelData> RiskLevelBreakdown { get; set; } = new List<RiskLevelData>();
+
+        public IList<TopViolatingScriptsData> TopViolatingScripts { get; set; } = new List<TopViolatingScriptsData>();
+
+        public ComplianceMetrics ComplianceMetrics { get; set; } = new ComplianceMetrics();
+
+        public PerformanceMetrics PerformanceMetrics { get; set; } = new PerformanceMetrics();
+    }
+
+    public record ComplianceChartDataPoint
+    {
+        public DateTime Date { get; set; }
+        public double ComplianceScore { get; set; }
+        public int TotalScripts { get; set; }
+        public int AuthorizedScripts { get; set; }
+        public int UnauthorizedScripts { get; set; }
+    }
+
+    public record AlertTypeChartData
+    {
+        public string AlertType { get; set; }
+        public int Count { get; set; }
+        public string Color { get; set; }
+        public double Percentage { get; set; }
+    }
+
+    public record MonitoringTrendData
+    {
+        public DateTime Date { get; set; }
+        public int ChecksPerformed { get; set; }
+        public int IssuesFound { get; set; }
+        public double AverageResponseTime { get; set; }
+    }
+
+    public record RiskLevelData
+    {
+        public string RiskLevel { get; set; }
+        public int Count { get; set; }
+        public string Color { get; set; }
+        public double Percentage { get; set; }
+    }
+
+    public record TopViolatingScriptsData
+    {
+        public string ScriptUrl { get; set; }
+        public int ViolationCount { get; set; }
+        public string LastViolation { get; set; }
+        public string RiskLevel { get; set; }
+    }
+
+    public record ComplianceMetrics
+    {
+        public double ComplianceImprovement { get; set; }
+        public int ResolvedAlertsThisWeek { get; set; }
+        public int NewAlertsThisWeek { get; set; }
+        public double AverageResolutionTime { get; set; } // in hours
+        public int ScriptsAddedThisWeek { get; set; }
+        public double SecurityPosture { get; set; } // 0-100 score
+    }
+
+    public record PerformanceMetrics
+    {
+        public double AverageMonitoringTime { get; set; } // in seconds
+        public int SuccessfulChecks { get; set; }
+        public int FailedChecks { get; set; }
+        public double SystemUptime { get; set; } // percentage
+        public int ApiCallsThisWeek { get; set; }
+        public double CacheHitRate { get; set; } // percentage
     }
 }

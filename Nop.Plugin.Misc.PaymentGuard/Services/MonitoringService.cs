@@ -3,6 +3,7 @@ using HtmlAgilityPack;
 using Nop.Core;
 using Nop.Data;
 using Nop.Plugin.Misc.PaymentGuard.Domain;
+using Nop.Plugin.Misc.PaymentGuard.Dto;
 
 namespace Nop.Plugin.Misc.PaymentGuard.Services
 {
@@ -11,14 +12,17 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
         private readonly IRepository<ScriptMonitoringLog> _monitoringLogRepository;
         private readonly IAuthorizedScriptService _authorizedScriptService;
         private readonly HttpClient _httpClient;
+        private readonly ISRIValidationService _sriValidationService;
 
         public MonitoringService(IRepository<ScriptMonitoringLog> monitoringLogRepository,
             IAuthorizedScriptService authorizedScriptService,
-            HttpClient httpClient)
+            HttpClient httpClient,
+            ISRIValidationService sriValidationService)
         {
             _monitoringLogRepository = monitoringLogRepository;
             _authorizedScriptService = authorizedScriptService;
             _httpClient = httpClient;
+            _sriValidationService = sriValidationService;
         }
 
         public virtual async Task<ScriptMonitoringLog> PerformMonitoringCheckAsync(string pageUrl, int storeId)
@@ -241,6 +245,38 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
             }
 
             return report;
+        }
+
+        /// <summary>
+        /// Enhanced script validation with SRI checking
+        /// </summary>
+        public async Task<ScriptValidationResult> ValidateScriptWithSRIAsync(string scriptUrl, string integrity = null)
+        {
+            var result = new ScriptValidationResult { ScriptUrl = scriptUrl };
+
+            // 1. Check if script is authorized
+            var isAuthorized = await _authorizedScriptService.IsScriptAuthorizedAsync(scriptUrl, 1); // TODO: pass actual store ID
+            result.IsAuthorized = isAuthorized;
+
+            // 2. If script has integrity attribute, validate it
+            if (!string.IsNullOrEmpty(integrity))
+            {
+                var sriResult = await _sriValidationService.ValidateScriptIntegrityAsync(scriptUrl, integrity);
+                result.SRIValidation = sriResult;
+                result.HasValidSRI = sriResult.IsValid;
+            }
+            else
+            {
+                result.HasValidSRI = false;
+                result.SRIValidation = new SRIValidationResult
+                {
+                    IsValid = false,
+                    Error = "No integrity attribute present",
+                    ScriptUrl = scriptUrl
+                };
+            }
+
+            return result;
         }
     }
 }

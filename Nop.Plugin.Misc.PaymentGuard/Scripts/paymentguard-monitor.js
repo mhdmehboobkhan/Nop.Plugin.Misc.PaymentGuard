@@ -1,13 +1,13 @@
-﻿(function (window, document) {
+﻿// Enhanced paymentguard-monitor.js with SRI validation
+(function (window, document) {
 
   var PaymentGuard = {
     config: {
       apiEndpoint: '/Plugins/PaymentGuard/Api',
-      checkInterval: 5000, // 5 seconds
+      checkInterval: 5000,
       enabled: true
     },
 
-    // Store initial state
     initialScripts: [],
     currentScripts: [],
 
@@ -19,6 +19,7 @@
       this.setupCSPViolationReporting();
     },
 
+    // Enhanced script capturing with SRI information
     captureInitialScripts: function () {
       var scripts = document.querySelectorAll('script[src]');
       this.initialScripts = Array.from(scripts).map(function (script) {
@@ -28,29 +29,141 @@
           crossorigin: script.crossOrigin || null,
           async: script.async,
           defer: script.defer,
-          type: script.type || 'text/javascript'
+          type: script.type || 'text/javascript',
+          // NEW: Capture SRI status
+          hasSRI: !!script.integrity,
+          sriAlgorithm: script.integrity ? script.integrity.split('-')[0] : null
         };
       });
 
-      // Also capture inline scripts (generate hash for identification)
-      var inlineScripts = document.querySelectorAll('script:not([src])');
-      Array.from(inlineScripts).forEach(function (script, index) {
-        if (script.textContent.trim()) {
-          var hash = PaymentGuard.generateSimpleHash(script.textContent);
-          PaymentGuard.initialScripts.push({
-            src: 'inline-script-' + hash,
-            content: script.textContent.substring(0, 100), // First 100 chars for identification
-            type: 'inline',
-            index: index
-          });
-        }
-      });
+      // Validate SRI for scripts that have integrity attributes
+      this.validateInitialScriptsSRI();
 
       console.log('PaymentGuard: Captured', this.initialScripts.length, 'initial scripts');
     },
 
+    // NEW: Validate SRI integrity for scripts
+    validateInitialScriptsSRI: function () {
+      this.initialScripts.forEach(function (scriptInfo) {
+        if (scriptInfo.hasSRI) {
+          PaymentGuard.validateScriptSRI(scriptInfo);
+        } else if (PaymentGuard.shouldHaveSRI(scriptInfo.src)) {
+          // Report missing SRI for scripts that should have it
+          PaymentGuard.reportSRIViolation(scriptInfo.src, 'missing-sri');
+        }
+      });
+    },
+
+    // NEW: Check if script should have SRI based on our rules
+    shouldHaveSRI: function (scriptUrl) {
+      // Check if it's a trusted CDN that should have SRI
+      var trustedCDNs = [
+        'code.jquery.com',
+        'cdnjs.cloudflare.com',
+        'cdn.jsdelivr.net',
+        'stackpath.bootstrapcdn.com',
+        'maxcdn.bootstrapcdn.com'
+      ];
+
+      return trustedCDNs.some(function (cdn) {
+        return scriptUrl.includes(cdn);
+      });
+    },
+
+    // NEW: Validate SRI hash by checking with server
+    validateScriptSRI: function (scriptInfo) {
+      fetch(this.config.apiEndpoint + '/ValidateScriptWithSRI', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          scriptUrl: scriptInfo.src,
+          integrity: scriptInfo.integrity,
+          pageUrl: window.location.href
+        })
+      })
+        .then(function (response) {
+          return response.json();
+        })
+        .then(function (data) {
+          if (data.success) {
+            if (!data.hasValidSRI) {
+              console.error('PaymentGuard: SRI validation failed for script:', scriptInfo.src);
+              console.error('PaymentGuard: SRI Error:', data.sriError);
+
+              PaymentGuard.reportSRIViolation(scriptInfo.src, 'sri-validation-failed', data.sriError);
+            } else {
+              console.log('PaymentGuard: SRI validation passed for script:', scriptInfo.src);
+            }
+
+            if (!data.isAuthorized) {
+              console.warn('PaymentGuard: Unauthorized script detected:', scriptInfo.src);
+              PaymentGuard.handleUnauthorizedScript(scriptInfo);
+            }
+          }
+        })
+        .catch(function (error) {
+          console.error('PaymentGuard: Error validating SRI for script:', scriptInfo.src, error);
+        });
+    },
+
+    // NEW: Report SRI violations
+    reportSRIViolation: function (scriptUrl, violationType, details) {
+      var violation = {
+        src: scriptUrl,
+        violation: violationType,
+        details: details,
+        timestamp: new Date().toISOString(),
+        userAgent: navigator.userAgent
+      };
+
+      console.warn('PaymentGuard: SRI Violation -', violationType, 'for script:', scriptUrl);
+
+      fetch(this.config.apiEndpoint + '/ReportViolation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          violationType: violationType,
+          scriptUrl: scriptUrl,
+          pageUrl: window.location.href,
+          timestamp: violation.timestamp,
+          userAgent: violation.userAgent,
+          details: details
+        })
+      })
+        .catch(function (error) {
+          console.error('PaymentGuard: Error reporting SRI violation:', error);
+        });
+    },
+
+    // Enhanced script handling with SRI validation
+    handleNewScript: function (scriptElement) {
+      var scriptInfo = {
+        src: scriptElement.src || 'inline-script-' + this.generateSimpleHash(scriptElement.textContent || ''),
+        integrity: scriptElement.integrity || null,
+        addedAt: new Date().toISOString(),
+        authorized: false,
+        hasSRI: !!scriptElement.integrity
+      };
+
+      console.warn('PaymentGuard: New script detected:', scriptInfo.src);
+
+      // Validate both authorization and SRI
+      if (scriptInfo.hasSRI) {
+        this.validateScriptSRI(scriptInfo);
+      } else if (this.shouldHaveSRI(scriptInfo.src)) {
+        this.reportSRIViolation(scriptInfo.src, 'missing-sri');
+      }
+
+      // Also validate authorization
+      this.validateScript(scriptInfo);
+    },
+
     startMonitoring: function () {
-      // Monitor for new scripts being added
+      // Enhanced MutationObserver to catch SRI attributes
       if (window.MutationObserver) {
         var observer = new MutationObserver(function (mutations) {
           mutations.forEach(function (mutation) {
@@ -61,11 +174,28 @@
                 }
               });
             }
+            // NEW: Watch for attribute changes (like integrity being added/removed)
+            else if (mutation.type === 'attributes' &&
+              mutation.target.tagName === 'SCRIPT' &&
+              mutation.attributeName === 'integrity') {
+              console.log('PaymentGuard: Script integrity attribute changed:', mutation.target.src);
+              PaymentGuard.handleNewScript(mutation.target);
+            }
           });
         });
 
-        observer.observe(document.head, { childList: true, subtree: true });
-        observer.observe(document.body, { childList: true, subtree: true });
+        observer.observe(document.head, {
+          childList: true,
+          subtree: true,
+          attributes: true,
+          attributeFilter: ['integrity', 'src']
+        });
+        observer.observe(document.body, {
+          childList: true,
+          subtree: true,
+          attributes: true,
+          attributeFilter: ['integrity', 'src']
+        });
       }
 
       // Periodic check
@@ -74,38 +204,7 @@
       }, this.config.checkInterval);
     },
 
-    handleNewScript: function (scriptElement) {
-      var scriptInfo = {
-        src: scriptElement.src || 'inline-script-' + this.generateSimpleHash(scriptElement.textContent || ''),
-        addedAt: new Date().toISOString(),
-        authorized: false
-      };
-
-      console.warn('PaymentGuard: New script detected:', scriptInfo.src);
-
-      // Send to server for validation
-      this.validateScript(scriptInfo);
-    },
-
-    performPeriodicCheck: function () {
-      var currentScripts = document.querySelectorAll('script[src]');
-      this.currentScripts = Array.from(currentScripts).map(function (script) {
-        return script.src;
-      });
-
-      // Check for new scripts
-      var newScripts = this.currentScripts.filter(function (src) {
-        return !PaymentGuard.initialScripts.some(function (initial) {
-          return initial.src === src;
-        });
-      });
-
-      if (newScripts.length > 0) {
-        console.warn('PaymentGuard: New scripts detected during periodic check:', newScripts);
-        this.reportNewScripts(newScripts);
-      }
-    },
-
+    // Rest of the existing methods...
     validateScript: function (scriptInfo) {
       fetch(this.config.apiEndpoint + '/ValidateScript', {
         method: 'POST',
@@ -132,6 +231,38 @@
         });
     },
 
+    performPeriodicCheck: function () {
+      var currentScripts = document.querySelectorAll('script[src]');
+      this.currentScripts = Array.from(currentScripts).map(function (script) {
+        return {
+          src: script.src,
+          integrity: script.integrity,
+          hasSRI: !!script.integrity
+        };
+      });
+
+      // Check for new scripts
+      var newScripts = this.currentScripts.filter(function (current) {
+        return !PaymentGuard.initialScripts.some(function (initial) {
+          return initial.src === current.src;
+        });
+      });
+
+      if (newScripts.length > 0) {
+        console.warn('PaymentGuard: New scripts detected during periodic check:', newScripts);
+        newScripts.forEach(function (scriptInfo) {
+          if (scriptInfo.hasSRI) {
+            PaymentGuard.validateScriptSRI(scriptInfo);
+          } else if (PaymentGuard.shouldHaveSRI(scriptInfo.src)) {
+            PaymentGuard.reportSRIViolation(scriptInfo.src, 'missing-sri');
+          }
+        });
+        this.reportNewScripts(newScripts);
+      }
+    },
+
+    // ... rest of existing methods remain the same ...
+
     reportNewScripts: function (scripts) {
       fetch(this.config.apiEndpoint + '/ReportScripts', {
         method: 'POST',
@@ -139,7 +270,7 @@
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          scripts: scripts,
+          scripts: scripts.map(s => s.src),
           pageUrl: window.location.href,
           userAgent: navigator.userAgent,
           timestamp: new Date().toISOString(),
@@ -152,11 +283,7 @@
     },
 
     handleUnauthorizedScript: function (scriptInfo) {
-      // Log the violation
       console.error('PaymentGuard: SECURITY ALERT - Unauthorized script:', scriptInfo);
-
-      // Could potentially remove the script or block its execution
-      // For now, just report it
       this.reportSecurityViolation(scriptInfo);
     },
 
@@ -180,7 +307,6 @@
     },
 
     setupCSPViolationReporting: function () {
-      // Listen for CSP violations
       document.addEventListener('securitypolicyviolation', function (event) {
         console.warn('PaymentGuard: CSP Violation detected:', event);
 
@@ -220,7 +346,7 @@
       for (var i = 0; i < str.length; i++) {
         var char = str.charCodeAt(i);
         hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32bit integer
+        hash = hash & hash;
       }
       return Math.abs(hash).toString(16);
     }

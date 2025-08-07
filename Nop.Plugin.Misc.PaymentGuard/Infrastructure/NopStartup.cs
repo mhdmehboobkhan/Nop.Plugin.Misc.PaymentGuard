@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc.Razor;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Nop.Core.Infrastructure;
+using Nop.Plugin.Misc.PaymentGuard.Helpers;
 using Nop.Plugin.Misc.PaymentGuard.Services;
 
 namespace Nop.Plugin.Misc.PaymentGuard.Infrastructure
@@ -25,7 +26,18 @@ namespace Nop.Plugin.Misc.PaymentGuard.Infrastructure
             //register custom services
             services.AddScoped<IAuthorizedScriptService, AuthorizedScriptService>();
             services.AddScoped<IMonitoringService, MonitoringService>();
+            services.AddScoped<IComplianceAlertService, ComplianceAlertService>();
             services.AddScoped<IEmailAlertService, EmailAlertService>();
+            services.AddScoped<IExportService, ExportService>();
+            services.AddScoped<IDashboardService, DashboardService>();
+            services.AddScoped<ISRIValidationService, SRIValidationService>();
+
+            // Register SRI helper
+            services.AddScoped<SRIHelper>();
+
+            //register HttpClient for script fetching
+            services.AddHttpClient<AuthorizedScriptService>();
+            services.AddHttpClient<MonitoringService>();
 
             //themes support
             services.Configure<RazorViewEngineOptions>(options =>
@@ -40,6 +52,8 @@ namespace Nop.Plugin.Misc.PaymentGuard.Infrastructure
         /// <param name="application">Builder for configuring an application's request pipeline</param>
         public void Configure(IApplicationBuilder application)
         {
+            // Add rate limiting middleware for PaymentGuard API endpoints
+            application.UseMiddleware<PaymentGuardRateLimitingMiddleware>();
         }
 
         #endregion

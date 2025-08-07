@@ -1,5 +1,6 @@
 ﻿using Nop.Core;
 using Nop.Plugin.Misc.PaymentGuard.Domain;
+using Nop.Plugin.Misc.PaymentGuard.Dto;
 
 namespace Nop.Plugin.Misc.PaymentGuard.Services
 {
@@ -21,5 +22,7 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
         Task<IDictionary<string, string>> ExtractSecurityHeadersAsync(string pageUrl);
 
         Task<ComplianceReport> GenerateComplianceReportAsync(int storeId, DateTime? fromDate = null, DateTime? toDate = null);
+
+        Task<ScriptValidationResult> ValidateScriptWithSRIAsync(string scriptUrl, string integrity = null);
     }
 }

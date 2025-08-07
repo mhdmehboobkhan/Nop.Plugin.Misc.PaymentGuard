@@ -1,4 +1,5 @@
 ﻿@model PaymentGuardScriptModel
+@inject Nop.Plugin.Misc.PaymentGuard.Helpers.SRIHelper sriHelper
 
 @if (Model.IsEnabled)
 {
@@ -19,9 +20,14 @@
         };
     </script>
 
-    @* Include the monitoring script *@
-    <script src="~/Plugins/Misc.PaymentGuard/scripts/paymentguard-monitor.js"
-            integrity="sha384-ObLdFZlaXoyhgqR1O1TMO5HFRSgCtXQVyWFgGAh0WMaMdUADcM6fVjHRSL57rmSv"
+    @* Include the monitoring script with dynamic SRI *@
+    @{
+        var scriptPath = "~/Plugins/Misc.PaymentGuard/scripts/paymentguard-monitor.js";
+        var sriHash = Model.EnableSRIValidation ? sriHelper.GenerateSRIHash(scriptPath) : "";
+    }
+    
+    <script src="@scriptPath"
+            @(Model.EnableSRIValidation && !string.IsNullOrEmpty(sriHash) ? $"integrity=\"{sriHash}\"" : "")
             crossorigin="anonymous"></script>
 
     @* SRI validation helper *@

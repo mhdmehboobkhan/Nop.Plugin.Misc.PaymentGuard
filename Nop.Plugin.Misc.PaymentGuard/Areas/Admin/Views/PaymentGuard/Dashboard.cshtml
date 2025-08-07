@@ -11,27 +11,51 @@
     var complianceScoreClass = Model.ComplianceScore >= 95 ? "success" : Model.ComplianceScore >= 80 ? "warning" : "danger";
     var complianceScoreText = Model.ComplianceScore >= 95 ? "Plugins.Misc.PaymentGuard.Dashboard.ComplianceExcellent" : Model.ComplianceScore >= 80 ? "Plugins.Misc.PaymentGuard.Dashboard.ComplianceGood" : "Plugins.Misc.PaymentGuard.Dashboard.ComplianceNeedsAttention";
 }
+
 <div class="content-header clearfix">
     <h1 class="float-left">
+        <i class="fas fa-tachometer-alt"></i>
         @T("Plugins.Misc.PaymentGuard.Menu.Dashboard")
     </h1>
     <div class="float-right">
-        <a asp-action="List" class="btn btn-primary">
-            <i class="fas fa-list"></i>
-            @T("Plugins.Misc.PaymentGuard.ManageScripts")
+        <!-- Time Period Filter -->
+        <div class="btn-group mr-2" role="group">
+            <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-toggle="dropdown">
+                <i class="fas fa-calendar"></i> @Model.AvailableDayOptions.FirstOrDefault(x => x.Selected)?.Text
+            </button>
+            <div class="dropdown-menu">
+                @foreach (var option in Model.AvailableDayOptions)
+                {
+                    <a class="dropdown-item @(option.Selected ? "active" : "")"
+                       href="@Url.Action("Dashboard", new { days = option.Value })">
+                        @option.Text
+                    </a>
+                }
+            </div>
+        </div>
+
+        <button type="button" class="btn btn-primary" onclick="refreshDashboard()">
+            <i class="fas fa-sync"></i> Refresh
+        </button>
+        <a asp-action="List" class="btn btn-outline-primary">
+            <i class="fas fa-list"></i> @T("Plugins.Misc.PaymentGuard.ManageScripts")
         </a>
     </div>
 </div>
 
 <section class="content">
     <div class="container-fluid">
-        <!-- Stats Cards -->
+        <!-- Key Metrics Cards -->
         <div class="row">
             <div class="col-lg-3 col-6">
                 <div class="small-box bg-info">
                     <div class="inner">
                         <h3>@Model.TotalScriptsMonitored</h3>
                         <p>@T("Plugins.Misc.PaymentGuard.Dashboard.TotalScriptsMonitoredLabel")</p>
+                        @if (Model.ComplianceMetrics.ScriptsAddedThisWeek > 0)
+                        {
+                            <small class="text-light"><i class="fas fa-arrow-up"></i> +@Model.ComplianceMetrics.ScriptsAddedThisWeek this week</small>
+                        }
                     </div>
                     <div class="icon">
                         <i class="fas fa-code"></i>
@@ -43,6 +67,7 @@
                     <div class="inner">
                         <h3>@Model.AuthorizedScriptsCount</h3>
                         <p>@T("Plugins.Misc.PaymentGuard.Dashboard.AuthorizedScriptsLabel")</p>
+                        <small class="text-light">Secure & Compliant</small>
                     </div>
                     <div class="icon">
                         <i class="fas fa-check-shield"></i>
@@ -54,6 +79,10 @@
                     <div class="inner">
                         <h3>@Model.UnauthorizedScriptsCount</h3>
                         <p>@T("Plugins.Misc.PaymentGuard.Dashboard.UnauthorizedScriptsLabel")</p>
+                        @if (Model.ComplianceMetrics.NewAlertsThisWeek > 0)
+                        {
+                            <small class="text-dark"><i class="fas fa-exclamation-triangle"></i> @Model.ComplianceMetrics.NewAlertsThisWeek new this week</small>
+                        }
                     </div>
                     <div class="icon">
                         <i class="fas fa-exclamation-triangle"></i>
@@ -65,6 +94,13 @@
                     <div class="inner">
                         <h3>@Model.ComplianceScore.ToString("F1")%</h3>
                         <p>@T("Plugins.Misc.PaymentGuard.Dashboard.ComplianceScoreLabel")</p>
+                        @if (Math.Abs(Model.ComplianceMetrics.ComplianceImprovement) > 0.1)
+                        {
+                            <small class="@(Model.ComplianceMetrics.ComplianceImprovement > 0 ? "text-success" : "text-danger")">
+                                <i class="fas fa-arrow-@(Model.ComplianceMetrics.ComplianceImprovement > 0 ? "up" : "down")"></i> 
+                                @Math.Abs(Model.ComplianceMetrics.ComplianceImprovement).ToString("F1")% vs last week
+                            </small>
+                        }
                     </div>
                     <div class="icon">
                         <i class="fas fa-chart-pie"></i>
@@ -73,9 +109,186 @@
             </div>
         </div>
 
+        <!-- Charts Row -->
         <div class="row">
-            <!-- Compliance Overview -->
+            <!-- Compliance History Chart -->
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <i class="fas fa-chart-line"></i>
+                            Compliance Trends (Last 30 Days)
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="complianceHistoryChart" height="100"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alert Types Distribution -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <i class="fas fa-chart-pie"></i>
+                            Alert Types Distribution
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="alertTypePieChart" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Second Charts Row -->
+        <div class="row">
+            <!-- Monitoring Trends -->
             <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <i class="fas fa-search"></i>
+                            Monitoring Activity
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="monitoringTrendsChart" height="150"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Risk Level Breakdown -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <i class="fas fa-exclamation-circle"></i>
+                            Risk Level Breakdown
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="riskLevelChart" height="150"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Metrics & Top Violating Scripts -->
+        <div class="row">
+            <!-- Performance Metrics -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <i class="fas fa-tachometer-alt"></i>
+                            Performance Metrics
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-sm-6">
+                                <div class="description-block">
+                                    <h5 class="description-header">@Model.PerformanceMetrics.AverageMonitoringTime.ToString("F1")s</h5>
+                                    <span class="description-text">Avg Response Time</span>
+                                </div>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="description-block">
+                                    <h5 class="description-header">@Model.PerformanceMetrics.SystemUptime.ToString("F1")%</h5>
+                                    <span class="description-text">System Uptime</span>
+                                </div>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="description-block">
+                                    <h5 class="description-header">@Model.PerformanceMetrics.CacheHitRate.ToString("F1")%</h5>
+                                    <span class="description-text">Cache Hit Rate</span>
+                                </div>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="description-block">
+                                    <h5 class="description-header">@Model.PerformanceMetrics.ApiCallsThisWeek</h5>
+                                    <span class="description-text">API Calls This Week</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="progress-group mt-3">
+                            Success Rate
+                            <span class="float-right">
+                                @{
+                                    var successRate = Model.PerformanceMetrics.SuccessfulChecks + Model.PerformanceMetrics.FailedChecks > 0 
+                                        ? (double)Model.PerformanceMetrics.SuccessfulChecks / (Model.PerformanceMetrics.SuccessfulChecks + Model.PerformanceMetrics.FailedChecks) * 100 
+                                        : 100;
+                                }
+                                @successRate.ToString("F1")%
+                            </span>
+                            <div class="progress progress-sm">
+                                <div class="progress-bar bg-success" style="width: @successRate%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top Violating Scripts -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            Top Violating Scripts
+                        </h3>
+                    </div>
+                    <div class="card-body p-0">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Script</th>
+                                    <th>Violations</th>
+                                    <th>Risk</th>
+                                    <th>Last Seen</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (Model.TopViolatingScripts.Any())
+                                {
+                                    @foreach (var script in Model.TopViolatingScripts.Take(5))
+                                    {
+                                        <tr>
+                                            <td>
+                                                <small title="@script.ScriptUrl">@script.ScriptUrl</small>
+                                            </td>
+                                            <td>
+                                                <span class="badge badge-danger">@script.ViolationCount</span>
+                                            </td>
+                                            <td>
+                                                <span class="badge badge-@(script.RiskLevel == "High" ? "danger" : script.RiskLevel == "Medium" ? "warning" : "success")">
+                                                    @script.RiskLevel
+                                                </span>
+                                            </td>
+                                            <td><small>@script.LastViolation</small></td>
+                                        </tr>
+                                    }
+                                }
+                                else
+                                {
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted">
+                                            <i class="fas fa-check-circle"></i> No violations detected
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Compliance Metrics Summary -->
+        <div class="row">
+            <div class="col-md-12">
                 <div class="card">
                     <div class="card-header">
                         <h3 class="card-title">
@@ -85,88 +298,375 @@
                     </div>
                     <div class="card-body">
                         <div class="row">
-                            <div class="col-md-12">
-                                <div class="progress progress-sm">
-                                    <div class="progress-bar bg-@(complianceScoreClass)" style="width: @Model.ComplianceScore%"></div>
-                                </div>
-                                <small>
-                                    @T("Plugins.Misc.PaymentGuard.Dashboard.ComplianceOverview.Score"): <strong>@Model.ComplianceScore.ToString("F1")%</strong> (@T(complianceScoreText))
-                                </small>
-                            </div>
-                        </div>
-                        <hr>
-                        <div class="row">
-                            <div class="col-sm-4">
-                                <div class="description-block border-right">
-                                    <span class="description-percentage text-success">
-                                        <i class="fas fa-caret-up"></i> @Model.AuthorizedScriptsCount
-                                    </span>
-                                    <h5 class="description-header">@Model.AuthorizedScriptsCount</h5>
-                                    <span class="description-text">@T("Plugins.Misc.PaymentGuard.Dashboard.Authorized")</span>
+                            <div class="col-md-3">
+                                <div class="info-box">
+                                    <span class="info-box-icon bg-info"><i class="fas fa-clock"></i></span>
+                                    <div class="info-box-content">
+                                        <span class="info-box-text">Avg Resolution Time</span>
+                                        <span class="info-box-number">@Model.ComplianceMetrics.AverageResolutionTime.ToString("F1")h</span>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="col-sm-4">
-                                <div class="description-block border-right">
-                                    <span class="description-percentage text-warning">
-                                        <i class="fas fa-caret-down"></i> @Model.UnauthorizedScriptsCount
-                                    </span>
-                                    <h5 class="description-header">@Model.UnauthorizedScriptsCount</h5>
-                                    <span class="description-text">@T("Plugins.Misc.PaymentGuard.Dashboard.Unauthorized")</span>
+                            <div class="col-md-3">
+                                <div class="info-box">
+                                    <span class="info-box-icon bg-success"><i class="fas fa-check"></i></span>
+                                    <div class="info-box-content">
+                                        <span class="info-box-text">Resolved This Week</span>
+                                        <span class="info-box-number">@Model.ComplianceMetrics.ResolvedAlertsThisWeek</span>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="col-sm-4">
-                                <div class="description-block">
-                                    <span class="description-percentage text-info">
-                                        <i class="fas fa-caret-up"></i> @Model.TotalChecksPerformed
-                                    </span>
-                                    <h5 class="description-header">@Model.TotalChecksPerformed</h5>
-                                    <span class="description-text">@T("Plugins.Misc.PaymentGuard.Dashboard.Checks")</span>
+                            <div class="col-md-3">
+                                <div class="info-box">
+                                    <span class="info-box-icon bg-warning"><i class="fas fa-bell"></i></span>
+                                    <div class="info-box-content">
+                                        <span class="info-box-text">New Alerts</span>
+                                        <span class="info-box-number">@Model.ComplianceMetrics.NewAlertsThisWeek</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="info-box">
+                                    <span class="info-box-icon bg-primary"><i class="fas fa-shield-alt"></i></span>
+                                    <div class="info-box-content">
+                                        <span class="info-box-text">Security Posture</span>
+                                        <span class="info-box-number">@Model.ComplianceMetrics.SecurityPosture.ToString("F1")%</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Recent Activity -->
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">
-                            <i class="fas fa-clock"></i>
-                            @T("Plugins.Misc.PaymentGuard.Dashboard.RecentActivity")
-                        </h3>
-                    </div>
-                    <div class="card-body">
-                        <ul class="list-unstyled">
-                            <li>
-                                <i class="fas fa-check text-success"></i>
-                                @T("Plugins.Misc.PaymentGuard.Dashboard.LastMonitoringCheck") <strong>@Model.LastCheckDate.ToString("MMM dd, yyyy HH:mm")</strong>
-                            </li>
-                            <li>
-                                <i class="fas fa-bell text-info"></i>
-                                @T("Plugins.Misc.PaymentGuard.Dashboard.TotalAlertsGenerated") <strong>@Model.AlertsGenerated</strong>
-                            </li>
-                            <li>
-                                <i class="fas fa-shield-alt text-primary"></i>
-                                @T("Plugins.Misc.PaymentGuard.Dashboard.ScriptsUnderProtection") <strong>@Model.TotalScriptsMonitored</strong>
-                            </li>
-                        </ul>
-
-                        @if (Model.MostCommonUnauthorizedScripts.Any())
-                        {
-                            <hr>
-                            <h6><i class="fas fa-exclamation-triangle text-warning"></i> @T("Plugins.Misc.PaymentGuard.Dashboard.MostCommonUnauthorizedScripts")</h6>
-                            <ul class="list-unstyled">
-                                @foreach (var script in Model.MostCommonUnauthorizedScripts.Take(5))
-                                {
-                                    <li><small><code>@script</code></small></li>
-                                }
-                            </ul>
-                        }
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </section>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    $(document).ready(function() {
+        initializeCharts();
+    });
+
+    function initializeCharts() {
+        // Compliance History Line Chart
+        initComplianceHistoryChart();
+        
+        // Alert Types Pie Chart
+        initAlertTypePieChart();
+        
+        // Monitoring Trends Chart
+        initMonitoringTrendsChart();
+        
+        // Risk Level Doughnut Chart
+        initRiskLevelChart();
+    }
+
+    function initComplianceHistoryChart() {
+        var ctx = document.getElementById('complianceHistoryChart').getContext('2d');
+        var complianceData = @Html.Raw(Json.Serialize(Model.ComplianceHistoryData));
+
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: complianceData.map(function(item) {
+                    return new Date(item.date).toLocaleDateString();
+                }),
+                datasets: [{
+                    label: 'Compliance Score (%)',
+                    data: complianceData.map(function(item) { return item.complianceScore; }),
+                    borderColor: '#007bff',
+                    backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }, {
+                    label: 'Total Scripts',
+                    data: complianceData.map(function(item) { return item.totalScripts; }),
+                    borderColor: '#6c757d',
+                    backgroundColor: 'rgba(108, 117, 125, 0.1)',
+                    fill: false,
+                    yAxisID: 'y1'
+                }]
+            },
+            options: {
+                responsive: true,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                scales: {
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        min: 0,
+                        max: 100,
+                        ticks: {
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        grid: {
+                            drawOnChartArea: false,
+                        },
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: true
+                    },
+                    tooltip: {
+                        callbacks: {
+                            afterBody: function(context) {
+                                if (context[0].dataIndex !== undefined) {
+                                    var data = complianceData[context[0].dataIndex];
+                                    return [
+                                        'Authorized: ' + data.authorizedScripts,
+                                        'Unauthorized: ' + data.unauthorizedScripts
+                                    ];
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function initAlertTypePieChart() {
+        var ctx = document.getElementById('alertTypePieChart').getContext('2d');
+        var alertData = @Html.Raw(Json.Serialize(Model.AlertTypeDistribution));
+
+        if (alertData.length === 0) {
+            ctx.fillText('No alerts in selected period', 10, 50);
+            return;
+        }
+
+        new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: alertData.map(function(item) { return item.alertType; }),
+                datasets: [{
+                    data: alertData.map(function(item) { return item.count; }),
+                    backgroundColor: alertData.map(function(item) { return item.color; }),
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                var label = context.label || '';
+                                var value = context.parsed;
+                                var total = alertData.reduce(function(sum, item) { return sum + item.count; }, 0);
+                                var percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                return label + ': ' + value + ' (' + percentage + '%)';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function initMonitoringTrendsChart() {
+        var ctx = document.getElementById('monitoringTrendsChart').getContext('2d');
+        var trendData = @Html.Raw(Json.Serialize(Model.MonitoringTrends));
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: trendData.map(function(item) {
+                    return new Date(item.date).toLocaleDateString();
+                }),
+                datasets: [{
+                    label: 'Checks Performed',
+                    data: trendData.map(function(item) { return item.checksPerformed; }),
+                    backgroundColor: 'rgba(54, 162, 235, 0.8)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }, {
+                    label: 'Issues Found',
+                    data: trendData.map(function(item) { return item.issuesFound; }),
+                    backgroundColor: 'rgba(255, 99, 132, 0.8)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: true
+                    }
+                }
+            }
+        });
+    }
+
+    function initRiskLevelChart() {
+        var ctx = document.getElementById('riskLevelChart').getContext('2d');
+        var riskData = @Html.Raw(Json.Serialize(Model.RiskLevelBreakdown));
+
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: riskData.map(function(item) { return item.riskLevel; }),
+                datasets: [{
+                    data: riskData.map(function(item) { return item.count; }),
+                    backgroundColor: riskData.map(function(item) { return item.color; }),
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                cutout: '50%',
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                var label = context.label || '';
+                                var value = context.parsed;
+                                var total = riskData.reduce(function(sum, item) { return sum + item.count; }, 0);
+                                var percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                return label + ': ' + value + ' scripts (' + percentage + '%)';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    <!-- Enhanced refresh functionality -->
+    function refreshDashboard() {
+        // Show loading state
+        var refreshBtn = $('button:contains("Refresh")');
+        var originalHtml = refreshBtn.html();
+        refreshBtn.html('<i class="fas fa-spinner fa-spin"></i> Loading...').prop('disabled', true);
+
+        // Get current days filter
+        var currentDays = @Model.SelectedDays;
+    
+        $.post('@Url.Action("RefreshDashboardData")', { days: currentDays })
+            .done(function(result) {
+                if (result.success) {
+                    // Update key metrics without full page reload
+                    updateDashboardMetrics(result.data);
+                
+                    // Optionally reload charts with new data
+                    // initializeCharts();
+                
+                    // Show success notification
+                    toastr.success('Dashboard refreshed successfully');
+                } else {
+                    toastr.error(result.message || 'Error refreshing dashboard');
+                }
+            })
+            .fail(function() {
+                toastr.error('Error communicating with server');
+            })
+            .always(function() {
+                // Restore button state
+                refreshBtn.html(originalHtml).prop('disabled', false);
+            });
+    }
+
+    function updateDashboardMetrics(data) {
+        // Update the small boxes with new data
+        $('.small-box.bg-info h3').text(data.totalScripts);
+        $('.small-box.bg-success h3').text(data.authorizedScripts);
+        $('.small-box.bg-warning h3').text(data.unauthorizedScripts);
+        $('.small-box:last h3').text(data.complianceScore.toFixed(1) + '%');
+    
+        // Update any other visible metrics
+        $('.description-text:contains("Last Check")').parent().find('.description-header').text(data.lastCheck);
+    }
+</script>
+
+<style>
+    .small-box .inner small {
+        font-size: 0.8em;
+        font-weight: normal;
+    }
+    
+    .description-block {
+        text-align: center;
+        border-right: 1px solid #dee2e6;
+        margin-bottom: 10px;
+    }
+    
+    .description-block:last-child {
+        border-right: none;
+    }
+    
+    .info-box {
+        box-shadow: 0 0 1px rgba(0,0,0,.125), 0 1px 3px rgba(0,0,0,.2);
+        border-radius: .25rem;
+        background: #fff;
+        display: flex;
+        margin-bottom: 1rem;
+        min-height: 80px;
+        padding: .5rem;
+        position: relative;
+    }
+    
+    .info-box .info-box-icon {
+        border-radius: .25rem;
+        align-items: center;
+        display: flex;
+        font-size: 1.875rem;
+        justify-content: center;
+        text-align: center;
+        width: 70px;
+    }
+    
+    .info-box .info-box-content {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        line-height: 1.8;
+        margin-left: .5rem;
+        padding: 0 10px;
+    }
+    
+    .info-box .info-box-number {
+        display: block;
+        font-weight: 700;
+        font-size: 18px;
+    }
+    
+    .info-box .info-box-text {
+        display: block;
+        font-size: 14px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .progress-group {
+        margin-bottom: 15px;
+    }
+</style>
