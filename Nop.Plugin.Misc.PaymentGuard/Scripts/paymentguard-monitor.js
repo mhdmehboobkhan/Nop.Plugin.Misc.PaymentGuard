@@ -54,15 +54,37 @@
       });
     },
 
-    // NEW: Check if script should have SRI based on our rules
+    // FIXED: Check if script should have SRI based on our rules
     shouldHaveSRI: function (scriptUrl) {
+      // Skip same-origin scripts (local files)
+      if (scriptUrl.startsWith('/') || scriptUrl.includes(window.location.origin)) {
+        return false;
+      }
+
+      // Skip common local library patterns
+      const localLibraryPatterns = [
+        '/lib/',
+        '/js/',
+        '/scripts/',
+        '/assets/',
+        'lib_npm',
+        'jquery.min.js',
+        'bootstrap.min.js',
+        '.min.js?v=' // Bundled/versioned local files
+      ];
+
+      if (localLibraryPatterns.some(pattern => scriptUrl.includes(pattern))) {
+        return false;
+      }
+
       // Check if it's a trusted CDN that should have SRI
       var trustedCDNs = [
         'code.jquery.com',
         'cdnjs.cloudflare.com',
         'cdn.jsdelivr.net',
         'stackpath.bootstrapcdn.com',
-        'maxcdn.bootstrapcdn.com'
+        'maxcdn.bootstrapcdn.com',
+        'ajax.googleapis.com'
       ];
 
       return trustedCDNs.some(function (cdn) {

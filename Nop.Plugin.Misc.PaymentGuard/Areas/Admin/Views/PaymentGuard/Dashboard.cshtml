@@ -18,6 +18,10 @@
         @T("Plugins.Misc.PaymentGuard.Menu.Dashboard")
     </h1>
     <div class="float-right">
+        <a asp-action="GenerateComplianceReport" asp-route-format="pdf" class="btn btn-outline-success">
+            <i class="fas fa-file-pdf"></i> @T("Plugins.Misc.PaymentGuard.GenerateReport")
+        </a>
+
         <!-- Time Period Filter -->
         <div class="btn-group mr-2" role="group">
             <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-toggle="dropdown">
@@ -45,6 +49,219 @@
 
 <section class="content">
     <div class="container-fluid">
+         <!-- System Status Alert -->
+        @if (Model.HasCriticalIssues)
+        {
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="alert alert-danger">
+                        <h4><i class="fas fa-exclamation-triangle"></i> @T("Plugins.Misc.PaymentGuard.Dashboard.CriticalAlertsDetected")</h4>
+                        <p>@T("Plugins.Misc.PaymentGuard.Dashboard.CriticalAlertsMessage", Model.CriticalAlertsCount)</p>
+                        <a href="@Url.Action("List", "ComplianceAlert", new { SearchIsResolved = "false", SearchAlertLevel = "critical" })" class="btn btn-danger">
+                            @T("Plugins.Misc.PaymentGuard.Dashboard.ViewCriticalAlerts")
+                        </a>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Key Metrics Cards - Enhanced -->
+        <div class="row">
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-info">
+                    <div class="inner">
+                        <h3>@Model.TotalScriptsMonitored</h3>
+                        <p>@T("Plugins.Misc.PaymentGuard.Dashboard.TotalScriptsMonitoredLabel")</p>
+                        @if (Model.ComplianceMetrics.ScriptsAddedThisWeek > 0)
+                        {
+                            <small class="text-light"><i class="fas fa-arrow-up"></i> +@Model.ComplianceMetrics.ScriptsAddedThisWeek @T("Plugins.Misc.PaymentGuard.Dashboard.NewThisWeek")</small>
+                        }
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-code"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6">
+                <div class="small-box @(Model.HasActiveAlerts ? "bg-warning" : "bg-success")">
+                    <div class="inner">
+                        <h3>@Model.ActiveAlertsCount</h3>
+                        <p>@T("Plugins.Misc.PaymentGuard.Dashboard.ActiveAlertsLabel")</p>
+                        <small class="@(Model.HasActiveAlerts ? "text-dark" : "text-light")">
+                            @if (Model.NewAlertsToday > 0)
+                            {
+                                <i class="fas fa-plus"></i> @Model.NewAlertsToday @T("Plugins.Misc.PaymentGuard.Dashboard.NewToday")
+                            }
+                            else
+                            {
+                                <i class="fas fa-check"></i> @T("Plugins.Misc.PaymentGuard.Dashboard.NoNewAlerts")
+                            }
+                        </small>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-@(Model.HasActiveAlerts ? "exclamation-triangle" : "check-shield")"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6">
+                <div class="small-box @(Model.ComplianceScore >= 95 ? "bg-success" : Model.ComplianceScore >= 80 ? "bg-warning" : "bg-danger")">
+                    <div class="inner">
+                        <h3>@Model.ComplianceScore.ToString("F1")%</h3>
+                        <p>@T("Plugins.Misc.PaymentGuard.Dashboard.ComplianceScoreLabel")</p>
+                        @if (Math.Abs(Model.ComplianceMetrics.ComplianceImprovement) > 0.1)
+                        {
+                            <small class="@(Model.ComplianceMetrics.ComplianceImprovement > 0 ? "text-light" : "text-light")">
+                                <i class="fas fa-arrow-@(Model.ComplianceMetrics.ComplianceImprovement > 0 ? "up" : "down")"></i>
+                                @Math.Abs(Model.ComplianceMetrics.ComplianceImprovement).ToString("F1")% @T("Plugins.Misc.PaymentGuard.Dashboard.VsLastWeek")
+                            </small>
+                        }
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-chart-pie"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-primary">
+                    <div class="inner">
+                        <h3>@Model.RealTimeMetrics.AlertsLast24Hours</h3>
+                        <p>@T("Plugins.Misc.PaymentGuard.Dashboard.AlertsLast24Hours")</p>
+                        <small class="text-light">
+                            @T("Plugins.Misc.PaymentGuard.Dashboard.SystemStatus"):
+                            <span class="badge @Model.SystemStatusBadgeClass">@Model.SystemStatusText</span>
+                        </small>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-bell"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Real-Time Monitoring Status -->
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <i class="fas fa-heartbeat"></i>
+                            @T("Plugins.Misc.PaymentGuard.Dashboard.RealTimeStatus")
+                        </h3>
+                        <div class="card-tools">
+                            <span class="badge @Model.SystemStatusBadgeClass">@Model.SystemStatusText</span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="description-block">
+                                    <h5 class="description-header">@Model.RealTimeMetrics.ActiveMonitoringSessions</h5>
+                                    <span class="description-text">@T("Plugins.Misc.PaymentGuard.Dashboard.ActiveSessions")</span>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="description-block">
+                                    <h5 class="description-header">@Model.RealTimeMetrics.AlertsLastHour</h5>
+                                    <span class="description-text">@T("Plugins.Misc.PaymentGuard.Dashboard.AlertsLastHour")</span>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="description-block">
+                                    <h5 class="description-header">@Model.LastAlertTimeText</h5>
+                                    <span class="description-text">@T("Plugins.Misc.PaymentGuard.Dashboard.LastAlert")</span>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="description-block">
+                                    <h5 class="description-header">@Model.AlertResolutionRate.ToString("F1")%</h5>
+                                    <span class="description-text">@T("Plugins.Misc.PaymentGuard.Dashboard.ResolutionRate")</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Alerts & Charts Row -->
+        <div class="row">
+            <!-- Recent Alerts -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <i class="fas fa-bell"></i>
+                            @T("Plugins.Misc.PaymentGuard.Dashboard.RecentAlerts")
+                        </h3>
+                        <div class="card-tools">
+                            <a href="@Url.Action("List", "ComplianceAlert")" class="btn btn-sm btn-outline-primary">
+                                @T("Plugins.Misc.PaymentGuard.Dashboard.ViewAll")
+                            </a>
+                        </div>
+                    </div>
+                    <div class="card-body p-0" style="max-height: 400px; overflow-y: auto;">
+                        @if (Model.RecentAlertsList.Any())
+                        {
+                            <table class="table table-sm table-striped">
+                                <tbody>
+                                    @foreach (var alert in Model.RecentAlertsList)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <span class="badge @alert.BadgeClass">@alert.AlertLevel</span>
+                                            </td>
+                                            <td>
+                                                <strong>@alert.AlertType</strong><br>
+                                                <small class="text-muted" title="@alert.Message">
+                                                    @(alert.Message.Length > 50 ? alert.Message.Substring(0, 50) + "..." : alert.Message)
+                                                </small>
+                                            </td>
+                                            <td>
+                                                <small>@alert.TimeAgo</small>
+                                                @if (alert.IsResolved)
+                                                {
+                                                    <br>
+
+                                                    <span class="badge badge-success badge-sm">@T("Plugins.Misc.PaymentGuard.Dashboard.Resolved")</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                <a href="@Url.Action("Details", "ComplianceAlert", new { id = alert.Id })" class="btn btn-sm btn-outline-primary">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        }
+                        else
+                        {
+                            <div class="text-center py-4 text-muted">
+                                <i class="fas fa-check-circle fa-2x mb-2"></i>
+                                <p>@T("Plugins.Misc.PaymentGuard.Dashboard.NoRecentAlerts")</p>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alert Trends Chart -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <i class="fas fa-chart-line"></i>
+                            @T("Plugins.Misc.PaymentGuard.Dashboard.AlertTrends")
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="alertTrendsChart" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Key Metrics Cards -->
         <div class="row">
             <div class="col-lg-3 col-6">
@@ -358,6 +575,54 @@
                 </div>
             </div>
         </div>
+
+        <!-- Performance & Resolution Metrics -->
+        <div class="row">
+            <!-- Resolution Performance -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <i class="fas fa-stopwatch"></i>
+                            @T("Plugins.Misc.PaymentGuard.Dashboard.ResolutionPerformance")
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-sm-6">
+                                <div class="description-block">
+                                    <h5 class="description-header">@Model.AverageResolutionTimeHours.ToString("F1")h</h5>
+                                    <span class="description-text">@T("Plugins.Misc.PaymentGuard.Dashboard.AvgResolutionTime")</span>
+                                </div>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="description-block">
+                                    <h5 class="description-header">@Model.ComplianceMetrics.ResolvedAlertsThisWeek</h5>
+                                    <span class="description-text">@T("Plugins.Misc.PaymentGuard.Dashboard.ResolvedThisWeek")</span>
+                                </div>
+                            </div>
+                        </div>
+                        <canvas id="resolutionPerformanceChart" height="150"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alert Type Distribution -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <i class="fas fa-chart-pie"></i>
+                            @T("Plugins.Misc.PaymentGuard.Dashboard.AlertTypesDistribution")
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="alertTypeDistributionChart" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
 </section>
 
@@ -367,6 +632,15 @@
 <script>
     $(document).ready(function() {
         initializeCharts();
+
+        initializeAlertCharts();
+        // Also initialize existing charts
+        initializeExistingCharts();
+
+        // Auto-refresh every 5 minutes for real-time data
+        setInterval(function() {
+            refreshDashboard(false); // Silent refresh
+        }, 300000);
     });
 
     function initializeCharts() {
@@ -577,6 +851,207 @@
                 }
             }
         });
+    }
+
+    function initializeAlertCharts() {
+        // Alert Trends Chart
+        initAlertTrendsChart();
+
+        // Resolution Performance Chart
+        initResolutionPerformanceChart();
+
+        // Alert Type Distribution Chart
+        initAlertTypeDistributionChart();
+    }
+
+    function initAlertTrendsChart() {
+        var ctx = document.getElementById('alertTrendsChart').getContext('2d');
+        var alertTrendData = @Html.Raw(Json.Serialize(Model.AlertTrends));
+
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: alertTrendData.map(function(item) {
+                    return new Date(item.date).toLocaleDateString();
+                }),
+                datasets: [{
+                    label: 'Critical Alerts',
+                    data: alertTrendData.map(function(item) { return item.criticalAlerts; }),
+                    borderColor: '#dc3545',
+                    backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                    fill: true
+                }, {
+                    label: 'Warning Alerts',
+                    data: alertTrendData.map(function(item) { return item.warningAlerts; }),
+                    borderColor: '#ffc107',
+                    backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                    fill: true
+                }, {
+                    label: 'Info Alerts',
+                    data: alertTrendData.map(function(item) { return item.infoAlerts; }),
+                    borderColor: '#17a2b8',
+                    backgroundColor: 'rgba(23, 162, 184, 0.1)',
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    }
+
+    function initResolutionPerformanceChart() {
+        var ctx = document.getElementById('resolutionPerformanceChart').getContext('2d');
+        var resolutionData = @Html.Raw(Json.Serialize(Model.ResolutionPerformance));
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: resolutionData.map(function(item) {
+                    return new Date(item.date).toLocaleDateString();
+                }),
+                datasets: [{
+                    label: 'Alerts Resolved',
+                    data: resolutionData.map(function(item) { return item.alertsResolved; }),
+                    backgroundColor: 'rgba(40, 167, 69, 0.8)',
+                    borderColor: 'rgba(40, 167, 69, 1)',
+                    yAxisID: 'y'
+                }, {
+                    label: 'Avg Resolution Time (hours)',
+                    data: resolutionData.map(function(item) { return item.averageResolutionTimeHours; }),
+                    type: 'line',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                    yAxisID: 'y1'
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        beginAtZero: true
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        beginAtZero: true,
+                        grid: {
+                            drawOnChartArea: false,
+                        },
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    }
+
+    function initAlertTypeDistributionChart() {
+        var ctx = document.getElementById('alertTypeDistributionChart').getContext('2d');
+        var alertTypeData = @Html.Raw(Json.Serialize(Model.AlertTypeDistribution));
+
+        if (alertTypeData.length === 0) {
+            ctx.font = '16px Arial';
+            ctx.fillText('@T("Plugins.Misc.PaymentGuard.Dashboard.NoAlertsInSelectedPeriod")', 10, 50);
+            return;
+        }
+
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: alertTypeData.map(function(item) { return item.alertType; }),
+                datasets: [{
+                    data: alertTypeData.map(function(item) { return item.count; }),
+                    backgroundColor: alertTypeData.map(function(item) { return item.color; }),
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                var label = context.label || '';
+                                var value = context.parsed;
+                                var total = alertTypeData.reduce(function(sum, item) { return sum + item.count; }, 0);
+                                var percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                return label + ': ' + value + ' (' + percentage + '%)';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function refreshDashboard(showLoading = true) {
+        if (showLoading) {
+            var refreshBtn = $('button:contains("@T("Plugins.Misc.PaymentGuard.Dashboard.Refresh")")');
+            var originalHtml = refreshBtn.html();
+            refreshBtn.html('<i class="fas fa-spinner fa-spin"></i> @T("Plugins.Misc.PaymentGuard.Dashboard.Loading")').prop('disabled', true);
+        }
+
+        var currentDays = @Model.SelectedDays;
+
+        $.post('@Url.Action("RefreshDashboardData")', { days: currentDays })
+            .done(function(result) {
+                if (result.success && showLoading) {
+                    updateDashboardMetrics(result.data);
+                    toastr.success('@T("Plugins.Misc.PaymentGuard.Dashboard.RefreshSuccess")');
+                } else if (!result.success && showLoading) {
+                    toastr.error(result.message || '@T("Plugins.Misc.PaymentGuard.Dashboard.RefreshError")');
+                }
+            })
+            .fail(function() {
+                if (showLoading) {
+                    toastr.error('@T("Plugins.Misc.PaymentGuard.Dashboard.RefreshError")');
+                }
+            })
+            .always(function() {
+                if (showLoading) {
+                    var refreshBtn = $('button:contains("@T("Plugins.Misc.PaymentGuard.Dashboard.Loading")")');
+                    if (refreshBtn.length === 0) {
+                        refreshBtn = $('button:contains("@T("Plugins.Misc.PaymentGuard.Dashboard.Refresh")")');
+                    }
+                    refreshBtn.html('<i class="fas fa-sync"></i> @T("Plugins.Misc.PaymentGuard.Dashboard.Refresh")').prop('disabled', false);
+                }
+            });
+    }
+
+    function updateDashboardMetrics(data) {
+        // Update key metrics
+        $('.small-box.bg-info h3').text(data.totalScripts);
+        $('.small-box h3:contains("@Model.ActiveAlertsCount")').text(data.activeAlerts);
+        $('.small-box h3:contains("@Model.ComplianceScore")').text(data.complianceScore.toFixed(1) + '%');
+    }
+
+    // Placeholder for existing chart initialization
+    function initializeExistingCharts() {
+        // Your existing chart initialization code goes here
     }
 
     <!-- Enhanced refresh functionality -->

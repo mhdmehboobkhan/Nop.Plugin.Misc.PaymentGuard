@@ -2,7 +2,6 @@
 @using Nop.Core
 @model PaymentGuardScriptModel
 
-
 @inject IStoreContext storeContext
 @inject SRIHelper sriHelper
 
@@ -31,7 +30,7 @@
     var sriHash = Model.EnableSRIValidation ? await sriHelper.GenerateExternalSRIHashAsync(scriptPath) : "";
     <script src="@scriptPath" integrity="@sriHash" crossorigin="anonymous"></script>
 
-    @* SRI validation helper *@
+    @* FIXED: Smart SRI validation helper *@
     @if (Model.EnableSRIValidation)
     {
         <script>
@@ -48,6 +47,55 @@
                 // Track processed scripts to avoid duplicates
                 const processedScripts = new Set();
 
+                // FIXED: Define which scripts should have SRI validation
+                function shouldRequireSRI(scriptUrl) {
+                    // Skip same-origin scripts (local files) - check for localhost or current origin
+                    if (scriptUrl.startsWith('/') ||
+                        scriptUrl.includes(window.location.origin) ||
+                        scriptUrl.includes('localhost') ||
+                        scriptUrl.includes('127.0.0.1')) {
+                        return false;
+                    }
+
+                    // Skip PaymentGuard's own scripts
+                    if (scriptUrl.includes('PaymentGuard') || scriptUrl.includes('paymentguard')) {
+                        return false;
+                    }
+
+                    // Skip common local libraries that are typically bundled
+                    const localLibraryPatterns = [
+                        '/lib/',
+                        '/js/',
+                        '/scripts/',
+                        '/assets/',
+                        'lib_npm',
+                        'jquery.min.js',
+                        'bootstrap.min.js',
+                        'admin.common.js',
+                        'adminlte.min.js',
+                        'jquery-ui.min.js',
+                        'jquery.validate',
+                        'bootstrap.bundle.min.js',
+                        'jquery-migrate'
+                    ];
+
+                    if (localLibraryPatterns.some(pattern => scriptUrl.includes(pattern))) {
+                        return false;
+                    }
+
+                    // ONLY require SRI for external CDN scripts from trusted sources
+                    const trustedCDNs = [
+                        'cdnjs.cloudflare.com',
+                        'cdn.jsdelivr.net',
+                        'ajax.googleapis.com',
+                        'code.jquery.com',
+                        'stackpath.bootstrapcdn.com',
+                        'maxcdn.bootstrapcdn.com'
+                    ];
+
+                    return trustedCDNs.some(cdn => scriptUrl.includes(cdn));
+                }
+
                 // Function to validate and report script security
                 function validateScript(scriptElement, source = 'unknown') {
                     const src = scriptElement.src;
@@ -56,14 +104,13 @@
                     if (!src || processedScripts.has(src)) return;
                     processedScripts.add(src);
 
-                    // Skip same-origin scripts if configured
-                    if (window.PaymentGuardConfig.skipSameOrigin &&
-                        (src.startsWith('/') || src.includes(window.location.origin))) {
-                        return;
+                    // FIXED: Only check SRI for scripts that should have it
+                    if (!shouldRequireSRI(src)) {
+                        return; // Skip SRI validation for local/trusted scripts
                     }
 
-                    // Check for SRI hash
-                    if (!scriptElement.integrity && window.PaymentGuardConfig.enableSRI) {
+                    // Check for SRI hash on external CDN scripts only
+                    if (!scriptElement.integrity) {
                         const violation = {
                             src: src,
                             violation: 'missing-sri-hash',
@@ -72,14 +119,16 @@
                             userAgent: navigator.userAgent
                         };
 
-                        console.warn('PaymentGuard: Script loaded without SRI hash:', src, `(${source})`);
+                        console.warn('PaymentGuard: External CDN script loaded without SRI hash:', src, `(${source})`);
 
                         // Report violation
-                        window.PaymentGuard.reportSecurityViolation(violation);
+                        if (window.PaymentGuard && window.PaymentGuard.reportSecurityViolation) {
+                            window.PaymentGuard.reportSecurityViolation(violation);
+                        }
                     }
 
-                    // Validate existing SRI hash
-                    if (scriptElement.integrity && window.PaymentGuardConfig.enableSRI) {
+                    // Validate existing SRI hash format
+                    if (scriptElement.integrity) {
                         const integrityValue = scriptElement.integrity.trim();
                         const validPattern = /^(sha256|sha384|sha512)-[A-Za-z0-9+/]+=*$/;
 
@@ -93,7 +142,9 @@
                             };
 
                             console.error('PaymentGuard: Invalid SRI format:', integrityValue, 'for script:', src);
-                            window.PaymentGuard.reportSecurityViolation(violation);
+                            if (window.PaymentGuard && window.PaymentGuard.reportSecurityViolation) {
+                                window.PaymentGuard.reportSecurityViolation(violation);
+                            }
                         }
                     }
                 }
@@ -187,36 +238,23 @@
                         setTimeout(checkExistingScripts, 1000); // Delay to catch late-loading scripts
                     });
 
-                    console.log('PaymentGuard: SRI monitoring initialized');
+                    console.log('PaymentGuard: Smart SRI monitoring initialized - only checking external CDN scripts');
                 }
 
                 // Start monitoring
                 initializeMonitoring();
 
                 // 5. Provide manual validation function for testing
-                window.PaymentGuard.validateAllScripts = function() {
-                    processedScripts.clear();
-                    checkExistingScripts();
-                    console.log('PaymentGuard: Manual script validation completed');
-                };
+                if (window.PaymentGuard) {
+                    window.PaymentGuard.validateAllScripts = function() {
+                        processedScripts.clear();
+                        checkExistingScripts();
+                        console.log('PaymentGuard: Manual script validation completed');
+                    };
+                }
 
                 // 6. Configuration validation
-                if (window.PaymentGuardConfig.enableSRI) {
-                    console.log('PaymentGuard: SRI validation enabled');
-
-                    // Validate configuration
-                    if (!window.PaymentGuardConfig.hasOwnProperty('skipSameOrigin')) {
-                        window.PaymentGuardConfig.skipSameOrigin = false;
-                    }
-
-                    // Report configuration
-                    console.log('PaymentGuard Config:', {
-                        enableSRI: window.PaymentGuardConfig.enableSRI,
-                        skipSameOrigin: window.PaymentGuardConfig.skipSameOrigin
-                    });
-                } else {
-                    console.log('PaymentGuard: SRI validation disabled');
-                }
+                console.log('PaymentGuard: Smart SRI validation enabled - monitoring external CDN scripts only');
 
             })();
         </script>

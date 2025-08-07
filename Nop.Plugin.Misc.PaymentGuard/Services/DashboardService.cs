@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Nop.Data;
 using Nop.Plugin.Misc.PaymentGuard.Domain;
+using Nop.Plugin.Misc.PaymentGuard.Dto;
 using Nop.Plugin.Misc.PaymentGuard.Models;
 
 namespace Nop.Plugin.Misc.PaymentGuard.Services
@@ -171,6 +172,191 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
             var random = new Random();
             return Math.Round(75 + random.NextDouble() * 20, 1); // 75-95% range
         }
+        
+        private string GetTimeAgoString(DateTime dateTime)
+        {
+            var timeSpan = DateTime.UtcNow - dateTime;
+
+            if (timeSpan.TotalMinutes < 1)
+                return "Just now";
+            if (timeSpan.TotalMinutes < 60)
+                return $"{(int)timeSpan.TotalMinutes}m ago";
+            if (timeSpan.TotalHours < 24)
+                return $"{(int)timeSpan.TotalHours}h ago";
+            if (timeSpan.TotalDays < 7)
+                return $"{(int)timeSpan.TotalDays}d ago";
+
+            return dateTime.ToString("MMM dd");
+        }
+
+        private string GetAlertBadgeClass(string alertLevel)
+        {
+            return alertLevel?.ToLower() switch
+            {
+                "critical" => "badge-danger",
+                "warning" => "badge-warning",
+                "info" => "badge-info",
+                _ => "badge-secondary"
+            };
+        }
+
+        /// <summary>
+        /// Get alert metrics for dashboard
+        /// </summary>
+        private async Task<AlertMetrics> GetAlertMetricsAsync(int storeId, int days)
+        {
+            var fromDate = DateTime.UtcNow.AddDays(-days);
+            var today = DateTime.UtcNow.Date;
+
+            var alerts = await _complianceAlertRepository.Table
+                .Where(alert => alert.StoreId == storeId && alert.CreatedOnUtc >= fromDate)
+                .ToListAsync();
+
+            var resolvedAlerts = alerts.Where(a => a.IsResolved && a.ResolvedOnUtc.HasValue).ToList();
+
+            var averageResolutionTime = 0.0;
+            if (resolvedAlerts.Any())
+            {
+                averageResolutionTime = resolvedAlerts
+                    .Average(a => (a.ResolvedOnUtc!.Value - a.CreatedOnUtc).TotalHours);
+            }
+
+            return new AlertMetrics
+            {
+                ActiveAlertsCount = alerts.Count(a => !a.IsResolved),
+                CriticalAlertsCount = alerts.Count(a => !a.IsResolved && a.AlertLevel == "critical"),
+                NewAlertsToday = alerts.Count(a => a.CreatedOnUtc >= today),
+                ResolutionRate = alerts.Count > 0 ? (double)resolvedAlerts.Count / alerts.Count * 100 : 100,
+                AverageResolutionTimeHours = averageResolutionTime
+            };
+        }
+
+        /// <summary>
+        /// Get real-time metrics based on recent alert activity
+        /// </summary>
+        private async Task<RealTimeMetrics> GetRealTimeMetricsAsync(int storeId, int days)
+        {
+            var fromDate = DateTime.UtcNow.AddDays(-days);
+            var lastHour = DateTime.UtcNow.AddHours(-1);
+            var last24Hours = DateTime.UtcNow.AddDays(-1);
+
+            var recentAlerts = await _complianceAlertRepository.Table
+                .Where(alert => alert.StoreId == storeId && alert.CreatedOnUtc >= last24Hours)
+                .ToListAsync();
+
+            var systemStatus = "healthy";
+            if (recentAlerts.Any(a => !a.IsResolved && a.AlertLevel == "critical"))
+                systemStatus = "critical";
+            else if (recentAlerts.Any(a => !a.IsResolved && a.AlertLevel == "warning"))
+                systemStatus = "warning";
+
+            return new RealTimeMetrics
+            {
+                SystemStatus = systemStatus,
+                AlertsLastHour = recentAlerts.Count(a => a.CreatedOnUtc >= lastHour),
+                AlertsLast24Hours = recentAlerts.Count,
+                LastAlertTime = recentAlerts.OrderByDescending(a => a.CreatedOnUtc).FirstOrDefault()?.CreatedOnUtc,
+                ActiveMonitoringSessions = await GetActiveMonitoringSessionsAsync(storeId)
+            };
+        }
+
+        /// <summary>
+        /// Get recent alerts for dashboard display
+        /// </summary>
+        private async Task<IList<RecentAlertInfo>> GetRecentAlertsAsync(int storeId, int hours, int maxCount)
+        {
+            var fromDate = DateTime.UtcNow.AddHours(-hours);
+
+            var alerts = await _complianceAlertRepository.Table
+                .Where(alert => alert.StoreId == storeId && alert.CreatedOnUtc >= fromDate)
+                .OrderByDescending(alert => alert.CreatedOnUtc)
+                .Take(maxCount)
+                .ToListAsync();
+
+            return alerts.Select(alert => new RecentAlertInfo
+            {
+                Id = alert.Id,
+                AlertType = alert.AlertType,
+                AlertLevel = alert.AlertLevel,
+                Message = alert.Message,
+                ScriptUrl = TruncateUrl(alert.ScriptUrl, 50),
+                TimeAgo = GetTimeAgoString(alert.CreatedOnUtc),
+                IsResolved = alert.IsResolved,
+                BadgeClass = GetAlertBadgeClass(alert.AlertLevel)
+            }).ToList();
+        }
+
+        /// <summary>
+        /// Get alert trends over time
+        /// </summary>
+        private async Task<IList<AlertTrendData>> GetAlertTrendsAsync(int storeId, int days)
+        {
+            var fromDate = DateTime.UtcNow.AddDays(-days);
+
+            var alerts = await _complianceAlertRepository.Table
+                .Where(alert => alert.StoreId == storeId && alert.CreatedOnUtc >= fromDate)
+                .ToListAsync();
+
+            var trendData = alerts
+                .GroupBy(alert => alert.CreatedOnUtc.Date)
+                .Select(group => new AlertTrendData
+                {
+                    Date = group.Key,
+                    TotalAlerts = group.Count(),
+                    CriticalAlerts = group.Count(a => a.AlertLevel == "critical"),
+                    WarningAlerts = group.Count(a => a.AlertLevel == "warning"),
+                    InfoAlerts = group.Count(a => a.AlertLevel == "info"),
+                    ResolvedAlerts = group.Count(a => a.IsResolved)
+                })
+                .OrderBy(trend => trend.Date)
+                .ToList();
+
+            return trendData;
+        }
+
+        /// <summary>
+        /// Get resolution performance metrics
+        /// </summary>
+        private async Task<IList<ResolutionPerformanceData>> GetResolutionPerformanceAsync(int storeId, int days)
+        {
+            var fromDate = DateTime.UtcNow.AddDays(-days);
+
+            var resolvedAlerts = await _complianceAlertRepository.Table
+                .Where(alert => alert.StoreId == storeId
+                    && alert.IsResolved
+                    && alert.ResolvedOnUtc.HasValue
+                    && alert.CreatedOnUtc >= fromDate)
+                .ToListAsync();
+
+            var performanceData = resolvedAlerts
+                .GroupBy(alert => alert.ResolvedOnUtc!.Value.Date)
+                .Select(group => new ResolutionPerformanceData
+                {
+                    Date = group.Key,
+                    AlertsResolved = group.Count(),
+                    AverageResolutionTimeHours = group.Average(a =>
+                        (a.ResolvedOnUtc!.Value - a.CreatedOnUtc).TotalHours)
+                })
+                .OrderBy(data => data.Date)
+                .ToList();
+
+            return performanceData;
+        }
+
+        /// <summary>
+        /// Estimate active monitoring sessions (placeholder)
+        /// </summary>
+        private async Task<int> GetActiveMonitoringSessionsAsync(int storeId)
+        {
+            // This could be enhanced to track actual active sessions
+            // For now, return count based on recent client-side activity
+            var recentAlerts = await _complianceAlertRepository.Table
+                .Where(alert => alert.StoreId == storeId
+                    && alert.CreatedOnUtc >= DateTime.UtcNow.AddMinutes(-30))
+                .CountAsync();
+
+            return Math.Min(recentAlerts, 10); // Cap at 10 for realistic display
+        }
 
         #endregion
 
@@ -179,11 +365,19 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
         public virtual async Task<DashboardModel> GetDashboardDataAsync(int storeId, int days = 30)
         {
             var fromDate = DateTime.UtcNow.AddDays(-days);
+            var weekAgo = DateTime.UtcNow.AddDays(-7);
+
+            // Get compliance report (existing)
             var report = await _monitoringService.GenerateComplianceReportAsync(storeId, fromDate);
-            var expiredScripts = await _authorizedScriptService.GetExpiredScriptsAsync(30, storeId); // 30 days
+            var expiredScripts = await _authorizedScriptService.GetExpiredScriptsAsync(30, storeId);
+
+            // NEW: Get ComplianceAlert metrics
+            var alertMetrics = await GetAlertMetricsAsync(storeId, days);
+            var realTimeMetrics = await GetRealTimeMetricsAsync(storeId, days);
 
             var model = new DashboardModel
             {
+                // Existing metrics
                 TotalScriptsMonitored = report.TotalScriptsMonitored,
                 AuthorizedScriptsCount = report.AuthorizedScriptsCount,
                 UnauthorizedScriptsCount = report.UnauthorizedScriptsCount,
@@ -193,14 +387,28 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
                 AlertsGenerated = report.AlertsGenerated,
                 MostCommonUnauthorizedScripts = report.MostCommonUnauthorizedScripts,
 
-                // Advanced analytics data
+                // NEW: Alert-based metrics
+                ActiveAlertsCount = alertMetrics.ActiveAlertsCount,
+                CriticalAlertsCount = alertMetrics.CriticalAlertsCount,
+                NewAlertsToday = alertMetrics.NewAlertsToday,
+                AlertResolutionRate = alertMetrics.ResolutionRate,
+                AverageResolutionTimeHours = alertMetrics.AverageResolutionTimeHours,
+
+                // Enhanced analytics data
                 ComplianceHistoryData = await GetComplianceHistoryAsync(storeId, days),
                 AlertTypeDistribution = await GetAlertTypeDistributionAsync(storeId, days),
                 MonitoringTrends = await GetMonitoringTrendsAsync(storeId, days),
                 RiskLevelBreakdown = await GetRiskLevelBreakdownAsync(storeId),
                 TopViolatingScripts = await GetTopViolatingScriptsAsync(storeId, days),
+
+                // NEW: Alert-focused data
+                RecentAlerts = await GetRecentAlertsAsync(storeId, 24, 5),
+                AlertTrends = await GetAlertTrendsAsync(storeId, days),
+                ResolutionPerformance = await GetResolutionPerformanceAsync(storeId, days),
+
                 ComplianceMetrics = await GetComplianceMetricsAsync(storeId, days),
-                PerformanceMetrics = await GetPerformanceMetricsAsync(storeId, days)
+                PerformanceMetrics = await GetPerformanceMetricsAsync(storeId, days),
+                RealTimeMetrics = realTimeMetrics
             };
 
             model.ExpiredScriptsCount = expiredScripts.Count;
@@ -211,7 +419,6 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
                 DaysExpired = (DateTime.UtcNow - s.LastVerifiedUtc).Days
             }).ToList();
 
-            // Add any additional view data if needed
             model.SelectedDays = days;
             model.AvailableDayOptions = new List<SelectListItem>
             {

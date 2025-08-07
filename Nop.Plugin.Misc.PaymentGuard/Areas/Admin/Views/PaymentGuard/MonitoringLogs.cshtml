@@ -12,6 +12,17 @@
         @T("Plugins.Misc.PaymentGuard.Menu.MonitoringLogs")
     </h1>
     <div class="float-right">
+        <div class="btn-group mr-2" role="group">
+            <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-toggle="dropdown">
+                <i class="fas fa-download"></i> @T("Plugins.Misc.PaymentGuard.ExportToCsv")
+            </button>
+            <div class="dropdown-menu">
+                <a class="dropdown-item" href="javascript:void(0)" onclick="exportMonitoringLogsToCsv()">
+                    <i class="fas fa-file-csv"></i> @T("Plugins.Misc.PaymentGuard.ExportToCsv")
+                </a>
+            </div>
+        </div>
+
         <button type="button" class="btn btn-info" onclick="showManualCheckDialog()">
             <i class="fas fa-play"></i>
             @T("Plugins.Misc.PaymentGuard.RunManualCheck")
@@ -235,5 +246,26 @@
             .fail(function() {
                 alert('@T("Plugins.Misc.PaymentGuard.MonitoringLogs.ErrorPerformingCheck")');
             });
+    }
+
+    function exportMonitoringLogsToCsv() {
+        // Get current search parameters
+        var searchModel = {
+            SearchPageUrl: $('#SearchPageUrl').val(),
+            SearchHasUnauthorizedScripts: $('#SearchHasUnauthorizedScripts').val(),
+            SearchDateFrom: $('#SearchDateFrom').val(),
+            SearchDateTo: $('#SearchDateTo').val()
+        };
+
+        // Create form and submit
+        var form = $('<form method="post" action="@Url.Action("ExportMonitoringLogsToCsv", "PaymentGuard")">');
+        $.each(searchModel, function(key, value) {
+            if (value) {
+                form.append($('<input type="hidden" name="' + key + '" value="' + value + '">'));
+            }
+        });
+        $('body').append(form);
+        form.submit();
+        form.remove();
     }
 </script>

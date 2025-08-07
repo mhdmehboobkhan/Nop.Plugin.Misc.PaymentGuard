@@ -113,6 +113,15 @@ namespace Nop.Plugin.Misc.PaymentGuard
 
             menuItem.ChildNodes.Add(new SiteMapNode()
             {
+                Title = await _localizationService.GetResourceAsync("Plugins.Misc.PaymentGuard.Menu.Configuration"),
+                SystemName = "PaymentGuard.Menu.Configure",
+                Url = "~/Admin/PaymentGuard/Configure",
+                Visible = true,
+                IconClass = "fas fa-cog"
+            });
+
+            menuItem.ChildNodes.Add(new SiteMapNode()
+            {
                 Title = await _localizationService.GetResourceAsync("Plugins.Misc.PaymentGuard.Menu.ScriptManagement"),
                 SystemName = "PaymentGuard.Menu.ScriptManagement",
                 Url = "~/Admin/PaymentGuard/List",
@@ -131,11 +140,11 @@ namespace Nop.Plugin.Misc.PaymentGuard
 
             menuItem.ChildNodes.Add(new SiteMapNode()
             {
-                Title = await _localizationService.GetResourceAsync("Plugins.Misc.PaymentGuard.Menu.Configuration"),
-                SystemName = "PaymentGuard.Menu.Configure",
-                Url = "~/Admin/PaymentGuard/Configure",
+                Title = await _localizationService.GetResourceAsync("Plugins.Misc.PaymentGuard.Menu.Alerts"),
+                SystemName = "PaymentGuard.Menu.Alerts",
+                Url = "~/Admin/ComplianceAlert/List",
                 Visible = true,
-                IconClass = "fas fa-cog"
+                IconClass = "fas fa-bell"
             });
 
             var pluginNode = rootNode.ChildNodes.FirstOrDefault(x => x.SystemName == "Third party plugins");
@@ -401,8 +410,10 @@ namespace Nop.Plugin.Misc.PaymentGuard
                 ["Plugins.Misc.PaymentGuard.ComplianceReport.NextRecommendedReview"] = "Next Recommended Review:",
                 ["Plugins.Misc.PaymentGuard.ComplianceReport.PCIDSSCompliance"] = "PCI DSS Compliance Assessment",
                 ["Plugins.Misc.PaymentGuard.ComplianceReport.Requirements"] = "6.4.3, 11.6.1",
-                
+
                 // Compliance Alert Fields
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.ScriptUrl"] = "Script URL",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.ScriptUrl.Hint"] = "Full URL of the JavaScript file (e.g., https://example.com/script.js)",
                 ["Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.AlertType"] = "Alert Type",
                 ["Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.AlertType.Hint"] = "The type of security alert",
                 ["Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.AlertLevel"] = "Alert Level",
@@ -433,6 +444,43 @@ namespace Nop.Plugin.Misc.PaymentGuard
                 ["Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.SearchIsResolved.Hint"] = "Filter by resolution status",
                 ["Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.SearchStoreId"] = "Search Store",
                 ["Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.SearchStoreId.Hint"] = "Filter by store",
+                
+                // ComplianceAlert Details View
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Details.PageTitle"] = "Compliance Alert Details",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Details.AlertOverview"] = "Alert Overview",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Details.TechnicalDetails"] = "Technical Details",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Details.RecommendedActions"] = "Recommended Actions",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.BackToList"] = "back to alerts list",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.ResolveAlert"] = "Resolve Alert",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.EmailSent"] = "Sent",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.EmailNotSent"] = "Not Sent",
+
+                // Alert Actions
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Actions.UnauthorizedScript.Title"] = "Unauthorized Script Detected",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Actions.UnauthorizedScript.Action1"] = "Review the script to determine if it's legitimate",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Actions.UnauthorizedScript.Action2"] = "If legitimate, add it to the authorized scripts list",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Actions.UnauthorizedScript.Action3"] = "If malicious, investigate how it was added and remove it",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Actions.AuthorizeScript"] = "Authorize This Script",
+
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Actions.CSPViolation.Title"] = "Content Security Policy Violation",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Actions.CSPViolation.Action1"] = "Review the CSP policy configuration",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Actions.CSPViolation.Action2"] = "Add legitimate script domains to the CSP policy",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Actions.CSPViolation.Action3"] = "Remove or block unauthorized script sources",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Actions.UpdateCSPPolicy"] = "Update CSP Policy",
+
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Actions.IntegrityFailure.Title"] = "Script Integrity Failure",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Actions.IntegrityFailure.Action1"] = "Verify if the script has been legitimately updated",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Actions.IntegrityFailure.Action2"] = "Update the SRI hash if the script change is authorized",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Actions.IntegrityFailure.Action3"] = "Investigate potential tampering if change is unauthorized",
+
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Actions.General.Title"] = "Security Alert",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Actions.General.Action1"] = "Review the alert details and take appropriate action",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Actions.General.Action2"] = "Update your security configuration if needed",
+
+                // Alert Confirmation & Error Messages
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Confirm.Resolve"] = "Are you sure you want to resolve this alert?",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Error.ResolveFailed"] = "Failed to resolve alert. Please try again.",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Error.DeleteFailed"] = "Failed to delete alert. Please try again.",
 
                 // Monitoring Log Fields
                 ["Plugins.Misc.PaymentGuard.MonitoringLogs.View"] = "View",
@@ -532,6 +580,29 @@ namespace Nop.Plugin.Misc.PaymentGuard
                 ["Plugins.Misc.PaymentGuard.Dashboard.Last30Days"] = "Last 30 Days",
                 ["Plugins.Misc.PaymentGuard.Dashboard.Last90Days"] = "Last 90 Days",
 
+                // Dashboard Alert-focused Labels
+                ["Plugins.Misc.PaymentGuard.Dashboard.ActiveAlertsLabel"] = "Active Alerts",
+                ["Plugins.Misc.PaymentGuard.Dashboard.AlertsLast24Hours"] = "Alerts (24h)",
+                ["Plugins.Misc.PaymentGuard.Dashboard.SystemStatus"] = "System Status",
+                ["Plugins.Misc.PaymentGuard.Dashboard.CriticalAlertsDetected"] = "Critical Security Alerts Detected",
+                ["Plugins.Misc.PaymentGuard.Dashboard.CriticalAlertsMessage"] = "There are {0} unresolved critical alerts that require immediate attention.",
+                ["Plugins.Misc.PaymentGuard.Dashboard.ViewCriticalAlerts"] = "View Critical Alerts",
+                ["Plugins.Misc.PaymentGuard.Dashboard.RealTimeStatus"] = "Real-Time Monitoring Status",
+                ["Plugins.Misc.PaymentGuard.Dashboard.ActiveSessions"] = "Active Sessions",
+                ["Plugins.Misc.PaymentGuard.Dashboard.AlertsLastHour"] = "Alerts Last Hour",
+                ["Plugins.Misc.PaymentGuard.Dashboard.LastAlert"] = "Last Alert",
+                ["Plugins.Misc.PaymentGuard.Dashboard.ResolutionRate"] = "Resolution Rate",
+                ["Plugins.Misc.PaymentGuard.Dashboard.RecentAlerts"] = "Recent Alerts",
+                ["Plugins.Misc.PaymentGuard.Dashboard.ViewAll"] = "View All",
+                ["Plugins.Misc.PaymentGuard.Dashboard.NewToday"] = "new today",
+                ["Plugins.Misc.PaymentGuard.Dashboard.NoNewAlerts"] = "No new alerts",
+                ["Plugins.Misc.PaymentGuard.Dashboard.Resolved"] = "Resolved",
+                ["Plugins.Misc.PaymentGuard.Dashboard.NoRecentAlerts"] = "No recent alerts - system is healthy!",
+                ["Plugins.Misc.PaymentGuard.Dashboard.AlertTrends"] = "Alert Trends",
+                ["Plugins.Misc.PaymentGuard.Dashboard.ResolutionPerformance"] = "Resolution Performance",
+                ["Plugins.Misc.PaymentGuard.Dashboard.RefreshSuccess"] = "Dashboard refreshed successfully",
+                ["Plugins.Misc.PaymentGuard.Dashboard.RefreshError"] = "Error refreshing dashboard data",
+
                 // Action Messages
                 ["Plugins.Misc.PaymentGuard.ScriptAdded"] = "Script has been added successfully",
                 ["Plugins.Misc.PaymentGuard.ScriptUpdated"] = "Script has been updated successfully",
@@ -558,6 +629,10 @@ namespace Nop.Plugin.Misc.PaymentGuard
                 ["Plugins.Misc.PaymentGuard.BulkResolve"] = "Bulk Resolve",
                 ["Plugins.Misc.PaymentGuard.BulkDelete"] = "Bulk Delete",
                 ["Plugins.Misc.PaymentGuard.SelectAll"] = "Select All",
+
+                ["Plugins.Misc.PaymentGuard.BulkActions"] = "Bulk Actions",
+                ["Plugins.Misc.PaymentGuard.SelectAlerts"] = "Please select at least one alert",
+                ["Plugins.Misc.PaymentGuard.BulkResolve.Confirm"] = "Are you sure you want to resolve all selected alerts?",
 
                 // Status Labels
                 ["Plugins.Misc.PaymentGuard.Status.Resolved"] = "Resolved",

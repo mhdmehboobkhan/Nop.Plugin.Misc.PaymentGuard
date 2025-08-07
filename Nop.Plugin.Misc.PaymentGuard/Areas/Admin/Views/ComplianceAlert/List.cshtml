@@ -12,6 +12,31 @@
         @T("Plugins.Misc.PaymentGuard.Menu.Alerts")
     </h1>
     <div class="float-right">
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-toggle="dropdown">
+                <i class="fas fa-download"></i> @T("Plugins.Misc.PaymentGuard.ExportToCsv")
+            </button>
+            <div class="dropdown-menu">
+                <a class="dropdown-item" href="javascript:void(0)" onclick="exportAlertsToCsv()">
+                    <i class="fas fa-file-csv"></i> @T("Plugins.Misc.PaymentGuard.ExportToCsv")
+                </a>
+            </div>
+        </div>
+
+        <div class="btn-group ml-2" role="group">
+            <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-toggle="dropdown">
+                <i class="fas fa-tasks"></i> @T("Plugins.Misc.PaymentGuard.BulkActions")
+            </button>
+            <div class="dropdown-menu">
+                <a class="dropdown-item" href="javascript:void(0)" onclick="bulkResolveAlerts()">
+                    <i class="fas fa-check"></i> @T("Plugins.Misc.PaymentGuard.BulkResolve")
+                </a>
+                <a class="dropdown-item" href="javascript:void(0)" onclick="bulkDeleteAlerts()">
+                    <i class="fas fa-trash"></i> @T("Plugins.Misc.PaymentGuard.BulkDelete")
+                </a>
+            </div>
+        </div>
+        
         <button type="button" class="btn btn-outline-info" onclick="refreshAlerts()">
             <i class="fas fa-sync"></i>
             @T("Admin.Common.Refresh")
@@ -170,6 +195,74 @@
     function renderActions(data, type, row, meta) {
         return '<a class="btn btn-default btn-sm" href="/Admin/ComplianceAlert/Details/' + data + '">' +
                '<i class="fas fa-eye"></i> View</a>';
+    }
+
+    function exportAlertsToCsv() {
+        // Get current search parameters
+        var searchModel = {
+            SearchAlertType: $('#SearchAlertType').val(),
+            SearchAlertLevel: $('#SearchAlertLevel').val(),
+            SearchIsResolved: $('#SearchIsResolved').val()
+        };
+
+        // Create form and submit
+        var form = $('<form method="post" action="@Url.Action("ExportAlertsToCsv", "PaymentGuard")">');
+        $.each(searchModel, function(key, value) {
+            if (value) {
+                form.append($('<input type="hidden" name="' + key + '" value="' + value + '">'));
+            }
+        });
+        $('body').append(form);
+        form.submit();
+        form.remove();
+    }
+
+    function bulkResolveAlerts() {
+        var selectedIds = getSelectedAlertIds();
+        if (selectedIds.length === 0) {
+            alert('@T("Plugins.Misc.PaymentGuard.SelectAlerts")');
+            return;
+        }
+
+        if (confirm('@T("Plugins.Misc.PaymentGuard.BulkResolve.Confirm")')) {
+            $.post('@Url.Action("BulkResolveAlerts", "PaymentGuard")', { alertIds: selectedIds })
+                .done(function(result) {
+                    if (result.success) {
+                        $('#alerts-grid').DataTable().ajax.reload();
+                        toastr.success(result.message);
+                    } else {
+                        toastr.error(result.message);
+                    }
+                });
+        }
+    }
+
+    function bulkDeleteAlerts() {
+        var selectedIds = getSelectedAlertIds();
+        if (selectedIds.length === 0) {
+            alert('@T("Plugins.Misc.PaymentGuard.SelectAlerts")');
+            return;
+        }
+
+        if (confirm('@T("Admin.Common.DeleteConfirmation")')) {
+            $.post('@Url.Action("BulkDeleteAlerts", "PaymentGuard")', { alertIds: selectedIds })
+                .done(function(result) {
+                    if (result.success) {
+                        $('#alerts-grid').DataTable().ajax.reload();
+                        toastr.success(result.message);
+                    } else {
+                        toastr.error(result.message);
+                    }
+                });
+        }
+    }
+
+    function getSelectedAlertIds() {
+        var selectedIds = [];
+        $('#alerts-grid tbody input[type="checkbox"]:checked').each(function() {
+            selectedIds.push($(this).val());
+        });
+        return selectedIds;
     }
 
     function refreshAlerts() {

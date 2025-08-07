@@ -88,6 +88,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="Areas\Admin\Views\ComplianceAlert\Details.cshtml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="Areas\Admin\Views\ComplianceAlert\List.cshtml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
