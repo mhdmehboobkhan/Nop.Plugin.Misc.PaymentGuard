@@ -40,6 +40,75 @@ namespace Nop.Plugin.Misc.PaymentGuard.Tasks
 
         #endregion
 
+        #region Utilities
+
+        /// <summary>
+        /// Get log retention period in days from settings
+        /// </summary>
+        /// <param name="settings">PaymentGuard settings</param>
+        /// <returns>Retention days</returns>
+        private static int GetLogRetentionDays(PaymentGuardSettings settings)
+        {
+            // Use setting value, default to 90 days if not set properly
+            return settings.LogRetentionDays > 0 ? settings.LogRetentionDays : 90;
+        }
+
+        /// <summary>
+        /// Get alert retention period in days from settings
+        /// </summary>
+        /// <param name="settings">PaymentGuard settings</param>
+        /// <returns>Retention days</returns>
+        private static int GetAlertRetentionDays(PaymentGuardSettings settings)
+        {
+            // Use setting value, default to 30 days if not set properly
+            return settings.AlertRetentionDays > 0 ? settings.AlertRetentionDays : 30;
+        }
+
+        /// <summary>
+        /// Clean up duplicate alerts keeping only the latest occurrence
+        /// </summary>
+        /// <param name="storeId">Store identifier</param>
+        private async Task CleanupDuplicateAlerts(int storeId)
+        {
+            try
+            {
+                // Find duplicate alerts by AlertType, ScriptUrl, and PageUrl
+                var duplicateGroups = await _complianceAlertRepository.Table
+                    .Where(alert => alert.StoreId == storeId && alert.IsResolved)
+                    .GroupBy(alert => new { alert.AlertType, alert.ScriptUrl, alert.PageUrl })
+                    .Where(group => group.Count() > 1)
+                    .ToListAsync();
+
+                var deletedCount = 0;
+
+                foreach (var group in duplicateGroups)
+                {
+                    // Keep the most recent alert, delete the rest
+                    var alertsToDelete = group
+                        .OrderByDescending(alert => alert.CreatedOnUtc)
+                        .Skip(1)
+                        .ToList();
+
+                    if (alertsToDelete.Any())
+                    {
+                        await _complianceAlertRepository.DeleteAsync(alertsToDelete);
+                        deletedCount += alertsToDelete.Count;
+                    }
+                }
+
+                if (deletedCount > 0)
+                {
+                    await _logger.InformationAsync($"Cleaned up {deletedCount} duplicate alerts for store {storeId}");
+                }
+            }
+            catch (Exception ex)
+            {
+                await _logger.ErrorAsync($"Error cleaning up duplicate alerts for store {storeId}", ex);
+            }
+        }
+
+        #endregion
+
         #region Methods
 
         /// <summary>
@@ -108,75 +177,6 @@ namespace Nop.Plugin.Misc.PaymentGuard.Tasks
             {
                 await _logger.ErrorAsync("Error executing PaymentGuard cleanup task", ex);
                 throw;
-            }
-        }
-
-        #endregion
-
-        #region Utilities
-
-        /// <summary>
-        /// Get log retention period in days from settings
-        /// </summary>
-        /// <param name="settings">PaymentGuard settings</param>
-        /// <returns>Retention days</returns>
-        private static int GetLogRetentionDays(PaymentGuardSettings settings)
-        {
-            // Use setting value, default to 90 days if not set properly
-            return settings.LogRetentionDays > 0 ? settings.LogRetentionDays : 90;
-        }
-
-        /// <summary>
-        /// Get alert retention period in days from settings
-        /// </summary>
-        /// <param name="settings">PaymentGuard settings</param>
-        /// <returns>Retention days</returns>
-        private static int GetAlertRetentionDays(PaymentGuardSettings settings)
-        {
-            // Use setting value, default to 30 days if not set properly
-            return settings.AlertRetentionDays > 0 ? settings.AlertRetentionDays : 30;
-        }
-
-        /// <summary>
-        /// Clean up duplicate alerts keeping only the latest occurrence
-        /// </summary>
-        /// <param name="storeId">Store identifier</param>
-        private async Task CleanupDuplicateAlerts(int storeId)
-        {
-            try
-            {
-                // Find duplicate alerts by AlertType, ScriptUrl, and PageUrl
-                var duplicateGroups = await _complianceAlertRepository.Table
-                    .Where(alert => alert.StoreId == storeId && alert.IsResolved)
-                    .GroupBy(alert => new { alert.AlertType, alert.ScriptUrl, alert.PageUrl })
-                    .Where(group => group.Count() > 1)
-                    .ToListAsync();
-
-                var deletedCount = 0;
-
-                foreach (var group in duplicateGroups)
-                {
-                    // Keep the most recent alert, delete the rest
-                    var alertsToDelete = group
-                        .OrderByDescending(alert => alert.CreatedOnUtc)
-                        .Skip(1)
-                        .ToList();
-
-                    if (alertsToDelete.Any())
-                    {
-                        await _complianceAlertRepository.DeleteAsync(alertsToDelete);
-                        deletedCount += alertsToDelete.Count;
-                    }
-                }
-
-                if (deletedCount > 0)
-                {
-                    await _logger.InformationAsync($"Cleaned up {deletedCount} duplicate alerts for store {storeId}");
-                }
-            }
-            catch (Exception ex)
-            {
-                await _logger.ErrorAsync($"Error cleaning up duplicate alerts for store {storeId}", ex);
             }
         }
 

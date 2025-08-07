@@ -10,11 +10,17 @@ namespace Nop.Plugin.Misc.PaymentGuard.Tasks
 {
     public partial class MonitoringTask : IScheduleTask
     {
+        #region Fields
+
         private readonly IMonitoringService _monitoringService;
         private readonly IEmailAlertService _emailAlertService;
         private readonly ISettingService _settingService;
         private readonly IStoreService _storeService;
         private readonly ILogger _logger;
+
+        #endregion
+
+        #region Ctor
 
         public MonitoringTask(IMonitoringService monitoringService,
             IEmailAlertService emailAlertService,
@@ -28,6 +34,10 @@ namespace Nop.Plugin.Misc.PaymentGuard.Tasks
             _storeService = storeService;
             _logger = logger;
         }
+
+        #endregion
+
+        #region Methods
 
         public async Task ExecuteAsync()
         {
@@ -85,5 +95,7 @@ namespace Nop.Plugin.Misc.PaymentGuard.Tasks
                 throw;
             }
         }
+        
+        #endregion
     }
 }

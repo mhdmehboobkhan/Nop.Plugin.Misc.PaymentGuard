@@ -17,7 +17,7 @@ using Nop.Web.Framework.Controllers;
 using Nop.Web.Framework.Models.Extensions;
 using Nop.Web.Framework.Mvc.Filters;
 
-namespace Nop.Plugin.Misc.PaymentGuard.Areas.Admin.Controllers
+namespace Nop.Plugin.Misc.PaymentGuard.Controllers
 {
     [AuthorizeAdmin]
     [Area(AreaNames.Admin)]
@@ -102,8 +102,8 @@ namespace Nop.Plugin.Misc.PaymentGuard.Areas.Admin.Controllers
 
         #endregion
 
-        #region Methods
-        
+        #region Configure
+
         public async Task<IActionResult> Configure()
         {
             if (!await _permissionService.AuthorizeAsync(PaymentGuardPermissionProvider.ManagePaymentGuard))
@@ -218,7 +218,11 @@ namespace Nop.Plugin.Misc.PaymentGuard.Areas.Admin.Controllers
 
             return RedirectToAction("Configure");
         }
-        
+
+        #endregion
+
+        #region Authorized Scripts
+
         public async Task<IActionResult> List()
         {
             if (!await _permissionService.AuthorizeAsync(PaymentGuardPermissionProvider.ManageAuthorizedScripts))
@@ -456,6 +460,10 @@ namespace Nop.Plugin.Misc.PaymentGuard.Areas.Admin.Controllers
             return RedirectToAction("List");
         }
 
+        #endregion
+
+        #region Monitoring Logs
+
         public async Task<IActionResult> Dashboard(int days = 30)
         {
             if (!await _permissionService.AuthorizeAsync(StandardPermissionProvider.ManagePlugins))
@@ -521,10 +529,6 @@ namespace Nop.Plugin.Misc.PaymentGuard.Areas.Admin.Controllers
                 return Json(new { success = false, message = "Error refreshing dashboard" });
             }
         }
-
-        #endregion
-
-        #region Monitoring Logs
 
         public async Task<IActionResult> MonitoringLogs()
         {

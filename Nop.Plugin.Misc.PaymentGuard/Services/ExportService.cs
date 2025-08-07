@@ -27,6 +27,58 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
 
         #endregion
 
+        #region Utilities
+
+        private static string EscapeCsvValue(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+                return string.Empty;
+
+            // Escape quotes and handle multiline values
+            return value.Replace("\"", "\"\"");
+        }
+
+        private string GenerateComplianceReportHtml(string storeName, ComplianceReport report, DateTime? fromDate, DateTime? toDate)
+        {
+            var html = new StringBuilder();
+            html.AppendLine("<!DOCTYPE html>");
+            html.AppendLine("<html><head><title>PaymentGuard Compliance Report</title>");
+            html.AppendLine("<style>body{font-family:Arial,sans-serif;margin:20px;}table{border-collapse:collapse;width:100%;}th,td{border:1px solid #ddd;padding:8px;text-align:left;}th{background-color:#f2f2f2;}.header{text-align:center;margin-bottom:30px;}.summary{margin:20px 0;}</style>");
+            html.AppendLine("</head><body>");
+
+            html.AppendLine($"<div class='header'><h1>PaymentGuard Compliance Report</h1><h2>{storeName}</h2>");
+            html.AppendLine($"<p>Generated: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC</p>");
+            if (fromDate.HasValue || toDate.HasValue)
+                html.AppendLine($"<p>Period: {fromDate?.ToString("yyyy-MM-dd") ?? "Beginning"} to {toDate?.ToString("yyyy-MM-dd") ?? "End"}</p>");
+            html.AppendLine("</div>");
+
+            html.AppendLine("<div class='summary'><h3>Compliance Summary</h3>");
+            html.AppendLine("<table>");
+            html.AppendLine($"<tr><td><strong>Compliance Score</strong></td><td>{report.ComplianceScore:F1}%</td></tr>");
+            html.AppendLine($"<tr><td><strong>Total Scripts Monitored</strong></td><td>{report.TotalScriptsMonitored}</td></tr>");
+            html.AppendLine($"<tr><td><strong>Authorized Scripts</strong></td><td>{report.AuthorizedScriptsCount}</td></tr>");
+            html.AppendLine($"<tr><td><strong>Unauthorized Scripts</strong></td><td>{report.UnauthorizedScriptsCount}</td></tr>");
+            html.AppendLine($"<tr><td><strong>Total Checks Performed</strong></td><td>{report.TotalChecksPerformed}</td></tr>");
+            html.AppendLine($"<tr><td><strong>Alerts Generated</strong></td><td>{report.AlertsGenerated}</td></tr>");
+            html.AppendLine($"<tr><td><strong>Last Check Date</strong></td><td>{report.LastCheckDate:yyyy-MM-dd HH:mm:ss}</td></tr>");
+            html.AppendLine("</table></div>");
+
+            if (report.MostCommonUnauthorizedScripts.Any())
+            {
+                html.AppendLine("<div><h3>Most Common Unauthorized Scripts</h3><ul>");
+                foreach (var script in report.MostCommonUnauthorizedScripts)
+                {
+                    html.AppendLine($"<li>{script}</li>");
+                }
+                html.AppendLine("</ul></div>");
+            }
+
+            html.AppendLine("</body></html>");
+            return html.ToString();
+        }
+
+        #endregion
+
         #region Methods
 
         public virtual async Task<byte[]> ExportComplianceAlertsToCsvAsync(IList<ComplianceAlert> alerts)
@@ -118,58 +170,6 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
             // Convert HTML to PDF (would need PDF library implementation)
             // For demonstration, returning HTML as bytes
             return Encoding.UTF8.GetBytes(html);
-        }
-
-        #endregion
-
-        #region Utilities
-
-        private static string EscapeCsvValue(string value)
-        {
-            if (string.IsNullOrEmpty(value))
-                return string.Empty;
-
-            // Escape quotes and handle multiline values
-            return value.Replace("\"", "\"\"");
-        }
-
-        private string GenerateComplianceReportHtml(string storeName, ComplianceReport report, DateTime? fromDate, DateTime? toDate)
-        {
-            var html = new StringBuilder();
-            html.AppendLine("<!DOCTYPE html>");
-            html.AppendLine("<html><head><title>PaymentGuard Compliance Report</title>");
-            html.AppendLine("<style>body{font-family:Arial,sans-serif;margin:20px;}table{border-collapse:collapse;width:100%;}th,td{border:1px solid #ddd;padding:8px;text-align:left;}th{background-color:#f2f2f2;}.header{text-align:center;margin-bottom:30px;}.summary{margin:20px 0;}</style>");
-            html.AppendLine("</head><body>");
-
-            html.AppendLine($"<div class='header'><h1>PaymentGuard Compliance Report</h1><h2>{storeName}</h2>");
-            html.AppendLine($"<p>Generated: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC</p>");
-            if (fromDate.HasValue || toDate.HasValue)
-                html.AppendLine($"<p>Period: {fromDate?.ToString("yyyy-MM-dd") ?? "Beginning"} to {toDate?.ToString("yyyy-MM-dd") ?? "End"}</p>");
-            html.AppendLine("</div>");
-
-            html.AppendLine("<div class='summary'><h3>Compliance Summary</h3>");
-            html.AppendLine("<table>");
-            html.AppendLine($"<tr><td><strong>Compliance Score</strong></td><td>{report.ComplianceScore:F1}%</td></tr>");
-            html.AppendLine($"<tr><td><strong>Total Scripts Monitored</strong></td><td>{report.TotalScriptsMonitored}</td></tr>");
-            html.AppendLine($"<tr><td><strong>Authorized Scripts</strong></td><td>{report.AuthorizedScriptsCount}</td></tr>");
-            html.AppendLine($"<tr><td><strong>Unauthorized Scripts</strong></td><td>{report.UnauthorizedScriptsCount}</td></tr>");
-            html.AppendLine($"<tr><td><strong>Total Checks Performed</strong></td><td>{report.TotalChecksPerformed}</td></tr>");
-            html.AppendLine($"<tr><td><strong>Alerts Generated</strong></td><td>{report.AlertsGenerated}</td></tr>");
-            html.AppendLine($"<tr><td><strong>Last Check Date</strong></td><td>{report.LastCheckDate:yyyy-MM-dd HH:mm:ss}</td></tr>");
-            html.AppendLine("</table></div>");
-
-            if (report.MostCommonUnauthorizedScripts.Any())
-            {
-                html.AppendLine("<div><h3>Most Common Unauthorized Scripts</h3><ul>");
-                foreach (var script in report.MostCommonUnauthorizedScripts)
-                {
-                    html.AppendLine($"<li>{script}</li>");
-                }
-                html.AppendLine("</ul></div>");
-            }
-
-            html.AppendLine("</body></html>");
-            return html.ToString();
         }
 
         #endregion

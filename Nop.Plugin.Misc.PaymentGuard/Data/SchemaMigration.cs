@@ -5,7 +5,7 @@ using Nop.Plugin.Misc.PaymentGuard.Domain;
 
 namespace Nop.Plugin.Misc.PaymentGuard.Data
 {
-    [NopMigration("2025/01/20 11:01:01:6455424", "Misc.PaymentGuard base schema", MigrationProcessType.Installation)]
+    [NopMigration("2025/01/20 11:05:01:6455424", "Misc.PaymentGuard base schema", MigrationProcessType.Installation)]
     public class SchemaMigration : Migration
     {
         public override void Up()

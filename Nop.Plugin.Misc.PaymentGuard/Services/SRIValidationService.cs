@@ -5,13 +5,23 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
 {
     public class SRIValidationService : ISRIValidationService
     {
+        #region Fields
+
         private readonly SRIHelper _sriHelper;
+
+        #endregion
+
+        #region Ctor
 
         public SRIValidationService(SRIHelper sriHelper)
         {
             _sriHelper = sriHelper;
         }
 
+        #endregion
+
+        #region Methods
+        
         /// <summary>
         /// Validate that a script's current hash matches its integrity attribute
         /// </summary>
@@ -52,5 +62,7 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
                 };
             }
         }
+        
+        #endregion
     }
 }

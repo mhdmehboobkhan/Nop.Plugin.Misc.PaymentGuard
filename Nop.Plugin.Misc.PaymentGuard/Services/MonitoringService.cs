@@ -10,11 +10,17 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
 {
     public partial class MonitoringService : IMonitoringService
     {
+        #region Fields
+
         private readonly IRepository<ScriptMonitoringLog> _monitoringLogRepository;
         private readonly IAuthorizedScriptService _authorizedScriptService;
         private readonly HttpClient _httpClient;
         private readonly ISRIValidationService _sriValidationService;
         private readonly ILogger _logger;
+
+        #endregion
+
+        #region Ctor
 
         public MonitoringService(IRepository<ScriptMonitoringLog> monitoringLogRepository,
             IAuthorizedScriptService authorizedScriptService,
@@ -28,6 +34,10 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
             _sriValidationService = sriValidationService;
             _logger = logger;
         }
+
+        #endregion
+
+        #region Methods
 
         public virtual async Task<ScriptMonitoringLog> PerformMonitoringCheckAsync(string pageUrl, int storeId)
         {
@@ -294,5 +304,7 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
 
             return result;
         }
+        
+        #endregion
     }
 }

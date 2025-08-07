@@ -10,16 +10,64 @@ namespace Nop.Plugin.Misc.PaymentGuard.Helpers
     /// </summary>
     public partial class SRIHelper
     {
+        #region Fields
+
         private readonly IWebHostEnvironment _webHostEnvironment;
         private readonly IWebHelper _webHelper;
         private static readonly Dictionary<string, string> _hashCache = new();
         private static readonly object _lockObject = new();
+
+        #endregion
+
+        #region Ctor
 
         public SRIHelper(IWebHostEnvironment webHostEnvironment, IWebHelper webHelper)
         {
             _webHostEnvironment = webHostEnvironment;
             _webHelper = webHelper;
         }
+
+        #endregion
+
+        #region Utilities
+
+        /// <summary>
+        /// Convert virtual path to physical path
+        /// </summary>
+        /// <param name="virtualPath">Virtual path starting with ~/</param>
+        /// <returns>Physical file path</returns>
+        private string GetPhysicalPath(string virtualPath)
+        {
+            if (virtualPath.StartsWith("~/"))
+            {
+                virtualPath = virtualPath.Substring(2);
+            }
+
+            return Path.Combine(_webHostEnvironment.WebRootPath, virtualPath.Replace('/', Path.DirectorySeparatorChar));
+        }
+
+        /// <summary>
+        /// Generate hash for content using specified algorithm
+        /// </summary>
+        /// <param name="content">File content</param>
+        /// <param name="algorithm">Hash algorithm</param>
+        /// <returns>Base64 encoded hash</returns>
+        private static string GenerateHash(string content, string algorithm)
+        {
+            var bytes = Encoding.UTF8.GetBytes(content);
+
+            return algorithm.ToLower() switch
+            {
+                "sha256" => Convert.ToBase64String(SHA256.HashData(bytes)),
+                "sha384" => Convert.ToBase64String(SHA384.HashData(bytes)),
+                "sha512" => Convert.ToBase64String(SHA512.HashData(bytes)),
+                _ => Convert.ToBase64String(SHA384.HashData(bytes)) // Default to SHA384
+            };
+        }
+
+        #endregion
+
+        #region Methods
 
         /// <summary>
         /// Generate SRI hash for a local script file
@@ -146,42 +194,6 @@ namespace Nop.Plugin.Misc.PaymentGuard.Helpers
                     _hashCache.Remove(key);
                 }
             }
-        }
-
-        #region Utilities
-
-        /// <summary>
-        /// Convert virtual path to physical path
-        /// </summary>
-        /// <param name="virtualPath">Virtual path starting with ~/</param>
-        /// <returns>Physical file path</returns>
-        private string GetPhysicalPath(string virtualPath)
-        {
-            if (virtualPath.StartsWith("~/"))
-            {
-                virtualPath = virtualPath.Substring(2);
-            }
-
-            return Path.Combine(_webHostEnvironment.WebRootPath, virtualPath.Replace('/', Path.DirectorySeparatorChar));
-        }
-
-        /// <summary>
-        /// Generate hash for content using specified algorithm
-        /// </summary>
-        /// <param name="content">File content</param>
-        /// <param name="algorithm">Hash algorithm</param>
-        /// <returns>Base64 encoded hash</returns>
-        private static string GenerateHash(string content, string algorithm)
-        {
-            var bytes = Encoding.UTF8.GetBytes(content);
-
-            return algorithm.ToLower() switch
-            {
-                "sha256" => Convert.ToBase64String(SHA256.HashData(bytes)),
-                "sha384" => Convert.ToBase64String(SHA384.HashData(bytes)),
-                "sha512" => Convert.ToBase64String(SHA512.HashData(bytes)),
-                _ => Convert.ToBase64String(SHA384.HashData(bytes)) // Default to SHA384
-            };
         }
 
         #endregion

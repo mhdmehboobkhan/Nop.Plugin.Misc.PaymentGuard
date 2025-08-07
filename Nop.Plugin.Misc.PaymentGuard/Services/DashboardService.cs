@@ -35,6 +35,145 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
 
         #endregion
 
+        #region Utilities
+
+        private async Task<ComplianceMetrics> GetComplianceMetricsAsync(int storeId, int days)
+        {
+            var fromDate = DateTime.UtcNow.AddDays(-days);
+            var weekAgo = DateTime.UtcNow.AddDays(-7);
+
+            var currentPeriodAlerts = await _complianceAlertRepository.Table
+                .Where(alert => alert.StoreId == storeId && alert.CreatedOnUtc >= weekAgo)
+                .ToListAsync();
+
+            var previousPeriodAlerts = await _complianceAlertRepository.Table
+                .Where(alert => alert.StoreId == storeId
+                    && alert.CreatedOnUtc >= weekAgo.AddDays(-7)
+                    && alert.CreatedOnUtc < weekAgo)
+                .ToListAsync();
+
+            var resolvedThisWeek = currentPeriodAlerts.Count(a => a.IsResolved);
+            var newThisWeek = currentPeriodAlerts.Count;
+
+            var scriptsAddedThisWeek = await _authorizedScriptRepository.Table
+                .CountAsync(script => script.StoreId == storeId && script.AuthorizedOnUtc >= weekAgo);
+
+            // Calculate compliance improvement
+            var currentCompliance = await GetCurrentComplianceScore(storeId);
+            var previousCompliance = await GetPreviousComplianceScore(storeId, 7);
+            var improvement = currentCompliance - previousCompliance;
+
+            return new ComplianceMetrics
+            {
+                ComplianceImprovement = improvement,
+                ResolvedAlertsThisWeek = resolvedThisWeek,
+                NewAlertsThisWeek = newThisWeek,
+                AverageResolutionTime = CalculateAverageResolutionTime(currentPeriodAlerts.Where(a => a.IsResolved)),
+                ScriptsAddedThisWeek = scriptsAddedThisWeek,
+                SecurityPosture = CalculateSecurityPosture(storeId)
+            };
+        }
+
+        private async Task<PerformanceMetrics> GetPerformanceMetricsAsync(int storeId, int days)
+        {
+            var fromDate = DateTime.UtcNow.AddDays(-days);
+            var logs = await _monitoringLogRepository.Table
+                .Where(log => log.StoreId == storeId && log.CheckedOnUtc >= fromDate)
+                .ToListAsync();
+
+            var successfulChecks = logs.Count(log => !log.HasUnauthorizedScripts);
+            var failedChecks = logs.Count - successfulChecks;
+
+            return new PerformanceMetrics
+            {
+                AverageMonitoringTime = GenerateRandomResponseTime(),
+                SuccessfulChecks = successfulChecks,
+                FailedChecks = failedChecks,
+                SystemUptime = 99.8, // Placeholder
+                ApiCallsThisWeek = GenerateRandomApiCalls(),
+                CacheHitRate = 85.5 // Placeholder
+            };
+        }
+
+        private string FormatAlertType(string alertType)
+        {
+            return alertType switch
+            {
+                "unauthorized-script" => "Unauthorized Scripts",
+                "csp-violation" => "CSP Violations",
+                "integrity-failure" => "Integrity Failures",
+                _ => alertType ?? "Unknown"
+            };
+        }
+
+        private string GetRiskLevelText(int riskLevel)
+        {
+            return riskLevel switch
+            {
+                1 => "Low",
+                2 => "Medium",
+                3 => "High",
+                _ => "Unknown"
+            };
+        }
+
+        private string TruncateUrl(string url, int maxLength)
+        {
+            if (string.IsNullOrEmpty(url) || url.Length <= maxLength)
+                return url;
+
+            return url.Substring(0, maxLength - 3) + "...";
+        }
+
+        private double GenerateRandomResponseTime()
+        {
+            // Placeholder for actual performance metrics
+            var random = new Random();
+            return Math.Round(random.NextDouble() * 2 + 0.5, 2); // 0.5 to 2.5 seconds
+        }
+
+        private int GenerateRandomApiCalls()
+        {
+            var random = new Random();
+            return random.Next(500, 2000);
+        }
+
+        private async Task<double> GetCurrentComplianceScore(int storeId)
+        {
+            var report = await _monitoringService.GenerateComplianceReportAsync(storeId, DateTime.UtcNow.AddDays(-7));
+            return report.ComplianceScore;
+        }
+
+        private async Task<double> GetPreviousComplianceScore(int storeId, int daysAgo)
+        {
+            var fromDate = DateTime.UtcNow.AddDays(-daysAgo * 2);
+            var toDate = DateTime.UtcNow.AddDays(-daysAgo);
+            var report = await _monitoringService.GenerateComplianceReportAsync(storeId, fromDate, toDate);
+            return report.ComplianceScore;
+        }
+
+        private double CalculateAverageResolutionTime(IEnumerable<ComplianceAlert> resolvedAlerts)
+        {
+            var alerts = resolvedAlerts.Where(a => a.ResolvedOnUtc.HasValue).ToList();
+            if (!alerts.Any())
+                return 0;
+
+            var totalHours = alerts.Sum(alert =>
+                (alert.ResolvedOnUtc!.Value - alert.CreatedOnUtc).TotalHours);
+
+            return Math.Round(totalHours / alerts.Count, 1);
+        }
+
+        private double CalculateSecurityPosture(int storeId)
+        {
+            // Complex calculation based on various factors
+            // This is a simplified version
+            var random = new Random();
+            return Math.Round(75 + random.NextDouble() * 20, 1); // 75-95% range
+        }
+
+        #endregion
+
         #region Methods
 
         public virtual async Task<DashboardModel> GetDashboardDataAsync(int storeId, int days = 30)
@@ -225,145 +364,6 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
             }
 
             return result;
-        }
-
-        #endregion
-
-        #region Utilities
-
-        private async Task<ComplianceMetrics> GetComplianceMetricsAsync(int storeId, int days)
-        {
-            var fromDate = DateTime.UtcNow.AddDays(-days);
-            var weekAgo = DateTime.UtcNow.AddDays(-7);
-
-            var currentPeriodAlerts = await _complianceAlertRepository.Table
-                .Where(alert => alert.StoreId == storeId && alert.CreatedOnUtc >= weekAgo)
-                .ToListAsync();
-
-            var previousPeriodAlerts = await _complianceAlertRepository.Table
-                .Where(alert => alert.StoreId == storeId
-                    && alert.CreatedOnUtc >= weekAgo.AddDays(-7)
-                    && alert.CreatedOnUtc < weekAgo)
-                .ToListAsync();
-
-            var resolvedThisWeek = currentPeriodAlerts.Count(a => a.IsResolved);
-            var newThisWeek = currentPeriodAlerts.Count;
-
-            var scriptsAddedThisWeek = await _authorizedScriptRepository.Table
-                .CountAsync(script => script.StoreId == storeId && script.AuthorizedOnUtc >= weekAgo);
-
-            // Calculate compliance improvement
-            var currentCompliance = await GetCurrentComplianceScore(storeId);
-            var previousCompliance = await GetPreviousComplianceScore(storeId, 7);
-            var improvement = currentCompliance - previousCompliance;
-
-            return new ComplianceMetrics
-            {
-                ComplianceImprovement = improvement,
-                ResolvedAlertsThisWeek = resolvedThisWeek,
-                NewAlertsThisWeek = newThisWeek,
-                AverageResolutionTime = CalculateAverageResolutionTime(currentPeriodAlerts.Where(a => a.IsResolved)),
-                ScriptsAddedThisWeek = scriptsAddedThisWeek,
-                SecurityPosture = CalculateSecurityPosture(storeId)
-            };
-        }
-
-        private async Task<PerformanceMetrics> GetPerformanceMetricsAsync(int storeId, int days)
-        {
-            var fromDate = DateTime.UtcNow.AddDays(-days);
-            var logs = await _monitoringLogRepository.Table
-                .Where(log => log.StoreId == storeId && log.CheckedOnUtc >= fromDate)
-                .ToListAsync();
-
-            var successfulChecks = logs.Count(log => !log.HasUnauthorizedScripts);
-            var failedChecks = logs.Count - successfulChecks;
-
-            return new PerformanceMetrics
-            {
-                AverageMonitoringTime = GenerateRandomResponseTime(),
-                SuccessfulChecks = successfulChecks,
-                FailedChecks = failedChecks,
-                SystemUptime = 99.8, // Placeholder
-                ApiCallsThisWeek = GenerateRandomApiCalls(),
-                CacheHitRate = 85.5 // Placeholder
-            };
-        }
-
-        private string FormatAlertType(string alertType)
-        {
-            return alertType switch
-            {
-                "unauthorized-script" => "Unauthorized Scripts",
-                "csp-violation" => "CSP Violations",
-                "integrity-failure" => "Integrity Failures",
-                _ => alertType ?? "Unknown"
-            };
-        }
-
-        private string GetRiskLevelText(int riskLevel)
-        {
-            return riskLevel switch
-            {
-                1 => "Low",
-                2 => "Medium",
-                3 => "High",
-                _ => "Unknown"
-            };
-        }
-
-        private string TruncateUrl(string url, int maxLength)
-        {
-            if (string.IsNullOrEmpty(url) || url.Length <= maxLength)
-                return url;
-
-            return url.Substring(0, maxLength - 3) + "...";
-        }
-
-        private double GenerateRandomResponseTime()
-        {
-            // Placeholder for actual performance metrics
-            var random = new Random();
-            return Math.Round(random.NextDouble() * 2 + 0.5, 2); // 0.5 to 2.5 seconds
-        }
-
-        private int GenerateRandomApiCalls()
-        {
-            var random = new Random();
-            return random.Next(500, 2000);
-        }
-
-        private async Task<double> GetCurrentComplianceScore(int storeId)
-        {
-            var report = await _monitoringService.GenerateComplianceReportAsync(storeId, DateTime.UtcNow.AddDays(-7));
-            return report.ComplianceScore;
-        }
-
-        private async Task<double> GetPreviousComplianceScore(int storeId, int daysAgo)
-        {
-            var fromDate = DateTime.UtcNow.AddDays(-daysAgo * 2);
-            var toDate = DateTime.UtcNow.AddDays(-daysAgo);
-            var report = await _monitoringService.GenerateComplianceReportAsync(storeId, fromDate, toDate);
-            return report.ComplianceScore;
-        }
-
-        private double CalculateAverageResolutionTime(IEnumerable<ComplianceAlert> resolvedAlerts)
-        {
-            var alerts = resolvedAlerts.Where(a => a.ResolvedOnUtc.HasValue).ToList();
-            if (!alerts.Any())
-                return 0;
-
-            var totalHours = alerts.Sum(alert =>
-                (alert.ResolvedOnUtc!.Value - alert.CreatedOnUtc).TotalHours);
-
-            return Math.Round(totalHours / alerts.Count, 1);
-        }
-
-        private double CalculateSecurityPosture(int storeId)
-        {
-            // Complex calculation based on various factors
-            // This is a simplified version
-            var random = new Random();
-            return Math.Round(75 + random.NextDouble() * 20, 1); // 75-95% range
         }
 
         #endregion
