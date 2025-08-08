@@ -9,12 +9,12 @@ namespace Nop.Plugin.Misc.PaymentGuard.Data
         public override void MapEntity(CreateTableExpressionBuilder table)
         {
             table
-                .WithColumn(nameof(ScriptMonitoringLog.PageUrl)).AsString(2000).Nullable()
+                .WithColumn(nameof(ScriptMonitoringLog.PageUrl)).AsString(int.MaxValue).Nullable()
                 .WithColumn(nameof(ScriptMonitoringLog.DetectedScripts)).AsString(int.MaxValue).Nullable()
                 .WithColumn(nameof(ScriptMonitoringLog.HttpHeaders)).AsString(int.MaxValue).Nullable()
                 .WithColumn(nameof(ScriptMonitoringLog.UnauthorizedScripts)).AsString(int.MaxValue).Nullable()
-                .WithColumn(nameof(ScriptMonitoringLog.CheckType)).AsString(50).Nullable()
-                .WithColumn(nameof(ScriptMonitoringLog.UserAgent)).AsString(50).Nullable();
+                .WithColumn(nameof(ScriptMonitoringLog.CheckType)).AsString(2000).Nullable()
+                .WithColumn(nameof(ScriptMonitoringLog.UserAgent)).AsString(2000).Nullable();
         }
     }
 }

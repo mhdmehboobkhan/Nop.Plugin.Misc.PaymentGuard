@@ -18,7 +18,6 @@ namespace Nop.Plugin.Misc.PaymentGuard.Models
         public int SelectedDays { get; set; }
 
         public IList<string> MostCommonUnauthorizedScripts { get; set; } = new List<string>();
-        public IList<RecentAlertInfo> RecentAlerts { get; set; } = new List<RecentAlertInfo>();
         public IList<SelectListItem> AvailableDayOptions { get; set; } = new List<SelectListItem>();
 
         public int ActiveAlertsCount { get; set; }
@@ -37,7 +36,7 @@ namespace Nop.Plugin.Misc.PaymentGuard.Models
         public PerformanceMetrics PerformanceMetrics { get; set; } = new PerformanceMetrics();
         public IList<ExpiredScriptInfo> ExpiredScripts { get; set; } = new List<ExpiredScriptInfo>();
 
-        public IList<RecentAlertInfo> RecentAlertsList { get; set; } = new List<RecentAlertInfo>();
+        public IList<RecentAlertInfo> RecentAlerts { get; set; } = new List<RecentAlertInfo>();
         public IList<AlertTrendData> AlertTrends { get; set; } = new List<AlertTrendData>();
         public IList<ResolutionPerformanceData> ResolutionPerformance { get; set; } = new List<ResolutionPerformanceData>();
         public RealTimeMetrics RealTimeMetrics { get; set; } = new RealTimeMetrics();

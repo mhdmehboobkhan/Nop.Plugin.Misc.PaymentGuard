@@ -12,35 +12,47 @@
         @T("Plugins.Misc.PaymentGuard.Menu.Alerts")
     </h1>
     <div class="float-right">
-        <div class="btn-group" role="group">
-            <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-toggle="dropdown">
-                <i class="fas fa-download"></i> @T("Plugins.Misc.PaymentGuard.ExportToCsv")
+        <div class="btn-group">
+            <button type="button" class="btn btn-success">
+                <i class="fas fa-download"></i>
+                @T("Admin.Common.Export")
             </button>
-            <div class="dropdown-menu">
-                <a class="dropdown-item" href="javascript:void(0)" onclick="exportAlertsToCsv()">
-                    <i class="fas fa-file-csv"></i> @T("Plugins.Misc.PaymentGuard.ExportToCsv")
-                </a>
-            </div>
+            <button type="button" class="btn btn-success dropdown-toggle dropdown-icon" data-toggle="dropdown" aria-expanded="false">
+                <span class="sr-only">&nbsp;</span>
+            </button>
+            <ul class="dropdown-menu" role="menu">
+                <li class="dropdown-item">
+                    <button type="button" name="exporttocsv" onclick="exportAlertsToCsv()">
+                        <i class="far fa-file-code"></i>
+                        @T("Plugins.Misc.PaymentGuard.ExportToCsv")
+                    </button>
+                </li>
+            </ul>
         </div>
 
-        <div class="btn-group ml-2" role="group">
-            <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-toggle="dropdown">
-                <i class="fas fa-tasks"></i> @T("Plugins.Misc.PaymentGuard.BulkActions")
+        <div class="btn-group">
+            <button type="button" class="btn btn-info">
+                <i class="fas fa-tasks"></i>
+                @T("Plugins.Misc.PaymentGuard.BulkActions")
             </button>
-            <div class="dropdown-menu">
-                <a class="dropdown-item" href="javascript:void(0)" onclick="bulkResolveAlerts()">
-                    <i class="fas fa-check"></i> @T("Plugins.Misc.PaymentGuard.BulkResolve")
-                </a>
-                <a class="dropdown-item" href="javascript:void(0)" onclick="bulkDeleteAlerts()">
-                    <i class="fas fa-trash"></i> @T("Plugins.Misc.PaymentGuard.BulkDelete")
-                </a>
-            </div>
+            <button type="button" class="btn btn-info dropdown-toggle dropdown-icon" data-toggle="dropdown" aria-expanded="false">
+                <span class="sr-only">&nbsp;</span>
+            </button>
+            <ul class="dropdown-menu" role="menu">
+                <li class="dropdown-item">
+                    <button type="button" name="bulkresolve" onclick="bulkResolveAlerts()">
+                        <i class="fa fa-check"></i>
+                        @T("Plugins.Misc.PaymentGuard.BulkResolve")
+                    </button>
+                </li>
+                <li class="dropdown-item">
+                    <button type="button" name="bulkdelete" onclick="bulkDeleteAlerts()">
+                        <i class="fa fa-trash"></i>
+                        @T("Plugins.Misc.PaymentGuard.BulkDelete")
+                    </button>
+                </li>
+            </ul>
         </div>
-        
-        <button type="button" class="btn btn-outline-info" onclick="refreshAlerts()">
-            <i class="fas fa-sync"></i>
-            @T("Admin.Common.Refresh")
-        </button>
     </div>
 </div>
 
@@ -57,7 +69,7 @@
                         </div>
                         <div class="search-body @(!ViewData.TemplateInfo.HtmlFieldPrefix.Equals("opened") ? "closed" : "")">
                             <div class="row">
-                                <div class="col-md-4">
+                                <div class="col-md-6">
                                     <div class="form-group row">
                                         <div class="col-md-4">
                                             <nop-label asp-for="SearchAlertType" />
@@ -66,8 +78,6 @@
                                             <nop-select asp-for="SearchAlertType" asp-items="Model.AvailableAlertTypes" />
                                         </div>
                                     </div>
-                                </div>
-                                <div class="col-md-4">
                                     <div class="form-group row">
                                         <div class="col-md-4">
                                             <nop-label asp-for="SearchAlertLevel" />
@@ -77,7 +87,7 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-md-4">
+                                <div class="col-md-6">
                                     <div class="form-group row">
                                         <div class="col-md-4">
                                             <nop-label asp-for="SearchIsResolved" />
@@ -117,6 +127,14 @@
                             },
                             ColumnCollection = new List<ColumnProperty>
                             {
+                                
+                                new ColumnProperty(nameof(ComplianceAlertModel.Id))
+                                {
+                                    IsMasterCheckBox = true,
+                                    Render = new RenderCheckBox("checkbox_orders"),
+                                    ClassName =  NopColumnClassDefaults.CenterAll,
+                                    Width = "50"
+                                },
                                 new ColumnProperty(nameof(ComplianceAlertModel.AlertType))
                                 {
                                     Title = T("Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.AlertType").Text,
@@ -204,9 +222,10 @@
             SearchAlertLevel: $('#SearchAlertLevel').val(),
             SearchIsResolved: $('#SearchIsResolved').val()
         };
+        addAntiForgeryToken(searchModel);
 
         // Create form and submit
-        var form = $('<form method="post" action="@Url.Action("ExportAlertsToCsv", "PaymentGuard")">');
+        var form = $('<form method="post" action="@Url.Action("ExportAlertsToCsv", "ComplianceAlert")">');
         $.each(searchModel, function(key, value) {
             if (value) {
                 form.append($('<input type="hidden" name="' + key + '" value="' + value + '">'));
@@ -225,7 +244,9 @@
         }
 
         if (confirm('@T("Plugins.Misc.PaymentGuard.BulkResolve.Confirm")')) {
-            $.post('@Url.Action("BulkResolveAlerts", "PaymentGuard")', { alertIds: selectedIds })
+            var data = { alertIds: selectedIds };
+            addAntiForgeryToken(data);
+            $.post('@Url.Action("BulkResolveAlerts", "ComplianceAlert")', data)
                 .done(function(result) {
                     if (result.success) {
                         $('#alerts-grid').DataTable().ajax.reload();
@@ -245,7 +266,9 @@
         }
 
         if (confirm('@T("Admin.Common.DeleteConfirmation")')) {
-            $.post('@Url.Action("BulkDeleteAlerts", "PaymentGuard")', { alertIds: selectedIds })
+            var data = { alertIds: selectedIds };
+            addAntiForgeryToken(data);
+            $.post('@Url.Action("BulkDeleteAlerts", "ComplianceAlert")', data)
                 .done(function(result) {
                     if (result.success) {
                         $('#alerts-grid').DataTable().ajax.reload();
@@ -263,9 +286,5 @@
             selectedIds.push($(this).val());
         });
         return selectedIds;
-    }
-
-    function refreshAlerts() {
-        $('#alerts-grid').DataTable().ajax.reload();
     }
 </script>

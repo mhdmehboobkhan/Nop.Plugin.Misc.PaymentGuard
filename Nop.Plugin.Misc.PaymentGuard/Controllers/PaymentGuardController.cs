@@ -119,7 +119,7 @@ namespace Nop.Plugin.Misc.PaymentGuard.Controllers
             var model = new ConfigurationModel
             {
                 IsEnabled = settings.IsEnabled,
-                MonitoringFrequency = settings.MonitoringFrequency,
+                //MonitoringFrequency = settings.MonitoringFrequency,
                 AlertEmail = settings.AlertEmail,
                 EnableEmailAlerts = settings.EnableEmailAlerts,
                 EnableCSPHeaders = settings.EnableCSPHeaders,
@@ -144,7 +144,7 @@ namespace Nop.Plugin.Misc.PaymentGuard.Controllers
             if (storeScope > 0)
             {
                 model.IsEnabled_OverrideForStore = await _settingService.SettingExistsAsync(settings, x => x.IsEnabled, storeScope);
-                model.MonitoringFrequency_OverrideForStore = await _settingService.SettingExistsAsync(settings, x => x.MonitoringFrequency, storeScope);
+                //model.MonitoringFrequency_OverrideForStore = await _settingService.SettingExistsAsync(settings, x => x.MonitoringFrequency, storeScope);
                 model.AlertEmail_OverrideForStore = await _settingService.SettingExistsAsync(settings, x => x.AlertEmail, storeScope);
                 model.EnableEmailAlerts_OverrideForStore = await _settingService.SettingExistsAsync(settings, x => x.EnableEmailAlerts, storeScope);
                 model.EnableCSPHeaders_OverrideForStore = await _settingService.SettingExistsAsync(settings, x => x.EnableCSPHeaders, storeScope);
@@ -177,7 +177,7 @@ namespace Nop.Plugin.Misc.PaymentGuard.Controllers
             var settings = await _settingService.LoadSettingAsync<PaymentGuardSettings>(storeScope);
 
             settings.IsEnabled = model.IsEnabled;
-            settings.MonitoringFrequency = model.MonitoringFrequency;
+            //settings.MonitoringFrequency = model.MonitoringFrequency;
             settings.AlertEmail = model.AlertEmail;
             settings.EnableEmailAlerts = model.EnableEmailAlerts;
             settings.EnableCSPHeaders = model.EnableCSPHeaders;
@@ -197,7 +197,7 @@ namespace Nop.Plugin.Misc.PaymentGuard.Controllers
             settings.WhitelistedIPs = model.WhitelistedIPs;
 
             await _settingService.SaveSettingOverridablePerStoreAsync(settings, x => x.IsEnabled, model.IsEnabled_OverrideForStore, storeScope, false);
-            await _settingService.SaveSettingOverridablePerStoreAsync(settings, x => x.MonitoringFrequency, model.MonitoringFrequency_OverrideForStore, storeScope, false);
+            //await _settingService.SaveSettingOverridablePerStoreAsync(settings, x => x.MonitoringFrequency, model.MonitoringFrequency_OverrideForStore, storeScope, false);
             await _settingService.SaveSettingOverridablePerStoreAsync(settings, x => x.AlertEmail, model.AlertEmail_OverrideForStore, storeScope, false);
             await _settingService.SaveSettingOverridablePerStoreAsync(settings, x => x.EnableEmailAlerts, model.EnableEmailAlerts_OverrideForStore, storeScope, false);
             await _settingService.SaveSettingOverridablePerStoreAsync(settings, x => x.EnableCSPHeaders, model.EnableCSPHeaders_OverrideForStore, storeScope, false);
@@ -291,12 +291,15 @@ namespace Nop.Plugin.Misc.PaymentGuard.Controllers
             return Json(model);
         }
 
-        public async Task<IActionResult> Create()
+        public async Task<IActionResult> Create(string scriptUrl = "")
         {
             if (!await _permissionService.AuthorizeAsync(PaymentGuardPermissionProvider.ManageAuthorizedScripts))
                 return AccessDeniedView();
 
-            var model = new AuthorizedScriptModel();
+            var model = new AuthorizedScriptModel()
+            {
+                ScriptUrl = scriptUrl
+            };
             await PrepareAuthorizedScriptModelAsync(model, null);
 
             return View(model);
@@ -470,7 +473,7 @@ namespace Nop.Plugin.Misc.PaymentGuard.Controllers
 
         public async Task<IActionResult> Dashboard(int days = 30)
         {
-            if (!await _permissionService.AuthorizeAsync(StandardPermissionProvider.ManagePlugins))
+            if (!await _permissionService.AuthorizeAsync(PaymentGuardPermissionProvider.ManagePaymentGuard))
                 return AccessDeniedView();
 
             try
@@ -505,7 +508,7 @@ namespace Nop.Plugin.Misc.PaymentGuard.Controllers
         [HttpPost]
         public async Task<IActionResult> RefreshDashboardData(int days = 30)
         {
-            if (!await _permissionService.AuthorizeAsync(StandardPermissionProvider.ManagePlugins))
+            if (!await _permissionService.AuthorizeAsync(PaymentGuardPermissionProvider.ManagePaymentGuard))
                 return Json(new { success = false, message = "Access denied" });
 
             try
@@ -632,7 +635,7 @@ namespace Nop.Plugin.Misc.PaymentGuard.Controllers
             return View(model);
         }
 
-        [HttpPost]
+        /*[HttpPost]
         public async Task<IActionResult> RunManualCheck(string pageUrl)
         {
             if (!await _permissionService.AuthorizeAsync(PaymentGuardPermissionProvider.ViewComplianceReports))
@@ -655,7 +658,7 @@ namespace Nop.Plugin.Misc.PaymentGuard.Controllers
                 await _logger.ErrorAsync($"Error performing manual monitoring check for {pageUrl}", ex);
                 return Json(new { success = false, message = "Error performing check: " + ex.Message });
             }
-        }
+        }*/
 
         #endregion
 
@@ -664,7 +667,7 @@ namespace Nop.Plugin.Misc.PaymentGuard.Controllers
         [HttpPost]
         public async Task<IActionResult> ExportScriptsToCsv(AuthorizedScriptSearchModel searchModel)
         {
-            if (!await _permissionService.AuthorizeAsync(StandardPermissionProvider.ManagePlugins))
+            if (!await _permissionService.AuthorizeAsync(PaymentGuardPermissionProvider.ManageAuthorizedScripts))
                 return AccessDeniedView();
 
             try
@@ -691,42 +694,9 @@ namespace Nop.Plugin.Misc.PaymentGuard.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> ExportAlertsToCsv(ComplianceAlertSearchModel searchModel)
-        {
-            if (!await _permissionService.AuthorizeAsync(StandardPermissionProvider.ManagePlugins))
-                return AccessDeniedView();
-
-            try
-            {
-                var storeScope = await _storeContext.GetActiveStoreScopeConfigurationAsync();
-
-                bool? isResolved = null;
-                if (!string.IsNullOrEmpty(searchModel.SearchIsResolved) && bool.TryParse(searchModel.SearchIsResolved, out var resolved))
-                    isResolved = resolved;
-
-                var alerts = await _complianceAlertService.GetAllComplianceAlertsAsync(
-                    storeId: storeScope,
-                    alertType: searchModel.SearchAlertType,
-                    alertLevel: searchModel.SearchAlertLevel,
-                    isResolved: isResolved);
-
-                var csvData = await _exportService.ExportComplianceAlertsToCsvAsync(alerts.ToList());
-
-                var fileName = $"compliance-alerts-{DateTime.UtcNow:yyyyMMdd-HHmmss}.csv";
-                return File(csvData, "text/csv", fileName);
-            }
-            catch (Exception ex)
-            {
-                await _logger.ErrorAsync("Error exporting compliance alerts to CSV", ex);
-                _notificationService.ErrorNotification("Error exporting data to CSV");
-                return RedirectToAction("List", "ComplianceAlert");
-            }
-        }
-
-        [HttpPost]
         public async Task<IActionResult> ExportMonitoringLogsToCsv(MonitoringLogSearchModel searchModel)
         {
-            if (!await _permissionService.AuthorizeAsync(StandardPermissionProvider.ManagePlugins))
+            if (!await _permissionService.AuthorizeAsync(PaymentGuardPermissionProvider.ViewComplianceReports))
                 return AccessDeniedView();
 
             try
@@ -757,7 +727,7 @@ namespace Nop.Plugin.Misc.PaymentGuard.Controllers
 
         public async Task<IActionResult> GenerateComplianceReport(DateTime? fromDate = null, DateTime? toDate = null, string format = "pdf")
         {
-            if (!await _permissionService.AuthorizeAsync(StandardPermissionProvider.ManagePlugins))
+            if (!await _permissionService.AuthorizeAsync(PaymentGuardPermissionProvider.ViewComplianceReports))
                 return AccessDeniedView();
 
             try
@@ -789,82 +759,6 @@ namespace Nop.Plugin.Misc.PaymentGuard.Controllers
                 await _logger.ErrorAsync("Error generating compliance report", ex);
                 _notificationService.ErrorNotification("Error generating compliance report");
                 return RedirectToAction("Dashboard");
-            }
-        }
-
-        #endregion
-
-        #region Bulk Operations
-
-        [HttpPost]
-        public async Task<IActionResult> BulkResolveAlerts(IList<int> alertIds)
-        {
-            if (!await _permissionService.AuthorizeAsync(StandardPermissionProvider.ManagePlugins))
-                return Json(new { success = false, message = "Access denied" });
-
-            try
-            {
-                if (alertIds == null || !alertIds.Any())
-                    return Json(new { success = false, message = "No alerts selected" });
-
-                var currentUser = await _workContext.GetCurrentCustomerAsync();
-                var resolvedCount = 0;
-
-                foreach (var alertId in alertIds)
-                {
-                    var alert = await _complianceAlertService.ResolveAlertAsync(alertId, currentUser.Email);
-                    if (alert != null)
-                        resolvedCount++;
-                }
-
-                return Json(new
-                {
-                    success = true,
-                    message = $"Successfully resolved {resolvedCount} alert(s)",
-                    resolvedCount = resolvedCount
-                });
-            }
-            catch (Exception ex)
-            {
-                await _logger.ErrorAsync("Error in bulk resolve alerts operation", ex);
-                return Json(new { success = false, message = "Error resolving alerts" });
-            }
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> BulkDeleteAlerts(IList<int> alertIds)
-        {
-            if (!await _permissionService.AuthorizeAsync(StandardPermissionProvider.ManagePlugins))
-                return Json(new { success = false, message = "Access denied" });
-
-            try
-            {
-                if (alertIds == null || !alertIds.Any())
-                    return Json(new { success = false, message = "No alerts selected" });
-
-                var deletedCount = 0;
-
-                foreach (var alertId in alertIds)
-                {
-                    var alert = await _complianceAlertService.GetComplianceAlertByIdAsync(alertId);
-                    if (alert != null)
-                    {
-                        await _complianceAlertService.DeleteComplianceAlertAsync(alert);
-                        deletedCount++;
-                    }
-                }
-
-                return Json(new
-                {
-                    success = true,
-                    message = $"Successfully deleted {deletedCount} alert(s)",
-                    deletedCount = deletedCount
-                });
-            }
-            catch (Exception ex)
-            {
-                await _logger.ErrorAsync("Error in bulk delete alerts operation", ex);
-                return Json(new { success = false, message = "Error deleting alerts" });
             }
         }
 

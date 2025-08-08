@@ -6,7 +6,7 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
 {
     public partial interface IMonitoringService
     {
-        Task<ScriptMonitoringLog> PerformMonitoringCheckAsync(string pageUrl, int storeId);
+        //Task<ScriptMonitoringLog> PerformMonitoringCheckAsync(string pageUrl, int storeId);
 
         Task<IPagedList<ScriptMonitoringLog>> GetMonitoringLogsAsync(int storeId = 0,
             bool? hasUnauthorizedScripts = null,
@@ -23,6 +23,7 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
 
         Task<ComplianceReport> GenerateComplianceReportAsync(int storeId, DateTime? fromDate = null, DateTime? toDate = null);
 
-        Task<ScriptValidationResult> ValidateScriptWithSRIAsync(int storeId, string scriptUrl, string integrity = null);
+        Task<ScriptValidationResult> ValidateScriptWithSRIAsync(PaymentGuardSettings guardSettings, 
+            int storeId, string scriptUrl, string integrity = null);
     }
 }

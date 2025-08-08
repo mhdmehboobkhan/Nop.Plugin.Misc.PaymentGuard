@@ -12,9 +12,9 @@ namespace Nop.Plugin.Misc.PaymentGuard.Models
         public bool IsEnabled { get; set; }
         public bool IsEnabled_OverrideForStore { get; set; }
 
-        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Configure.Fields.MonitoringFrequency")]
-        public int MonitoringFrequency { get; set; }
-        public bool MonitoringFrequency_OverrideForStore { get; set; }
+        //[NopResourceDisplayName("Plugins.Misc.PaymentGuard.Configure.Fields.MonitoringFrequency")]
+        //public int MonitoringFrequency { get; set; }
+        //public bool MonitoringFrequency_OverrideForStore { get; set; }
 
         [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Configure.Fields.AlertEmail")]
         [EmailAddress]

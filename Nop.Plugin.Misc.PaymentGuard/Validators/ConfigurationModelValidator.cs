@@ -12,9 +12,9 @@ namespace Nop.Plugin.Misc.PaymentGuard.Validators
         public ConfigurationModelValidator(ILocalizationService localizationService)
         {
             // General Settings Validation
-            RuleFor(x => x.MonitoringFrequency)
-                .GreaterThan(0)
-                .WithMessageAwait(localizationService.GetResourceAsync("Plugins.Misc.PaymentGuard.Configure.Fields.MonitoringFrequency.Range"));
+            //RuleFor(x => x.MonitoringFrequency)
+            //    .GreaterThan(0)
+            //    .WithMessageAwait(localizationService.GetResourceAsync("Plugins.Misc.PaymentGuard.Configure.Fields.MonitoringFrequency.Range"));
 
             // Alert Settings Validation
             RuleFor(x => x.AlertEmail)

@@ -166,7 +166,7 @@ namespace Nop.Plugin.Misc.PaymentGuard
             await _settingService.SaveSettingAsync(new PaymentGuardSettings
             {
                 IsEnabled = true,
-                MonitoringFrequency = 7, // Weekly
+                //MonitoringFrequency = 7, // Weekly
                 AlertEmail = "",
                 EnableEmailAlerts = true,
                 EnableCSPHeaders = true,
@@ -191,17 +191,17 @@ namespace Nop.Plugin.Misc.PaymentGuard
             }
 
             // Install scheduled tasks
-            if (await _scheduleTaskService.GetTaskByTypeAsync("Nop.Plugin.Misc.PaymentGuard.Tasks.MonitoringTask") == null)
-            {
-                await _scheduleTaskService.InsertTaskAsync(new ScheduleTask
-                {
-                    Name = "PaymentGuard Monitoring Task",
-                    Seconds = 604800, // Weekly (7 days * 24 hours * 60 minutes * 60 seconds)
-                    Type = "Nop.Plugin.Misc.PaymentGuard.Tasks.MonitoringTask",
-                    Enabled = true,
-                    StopOnError = false,
-                });
-            }
+            //if (await _scheduleTaskService.GetTaskByTypeAsync("Nop.Plugin.Misc.PaymentGuard.Tasks.MonitoringTask") == null)
+            //{
+            //    await _scheduleTaskService.InsertTaskAsync(new ScheduleTask
+            //    {
+            //        Name = "PaymentGuard Monitoring Task",
+            //        Seconds = 604800, // Weekly (7 days * 24 hours * 60 minutes * 60 seconds)
+            //        Type = "Nop.Plugin.Misc.PaymentGuard.Tasks.MonitoringTask",
+            //        Enabled = true,
+            //        StopOnError = false,
+            //    });
+            //}
 
             // Install cleanup task
             if (await _scheduleTaskService.GetTaskByTypeAsync("Nop.Plugin.Misc.PaymentGuard.Tasks.PaymentGuardCleanupTask") == null)
@@ -276,6 +276,7 @@ namespace Nop.Plugin.Misc.PaymentGuard
                 // Plugin Info
                 ["Plugins.Misc.PaymentGuard.FriendlyName"] = "PaymentGuard - PCI DSS Compliance",
                 ["Plugins.Misc.PaymentGuard.Description"] = "PCI DSS v4.0 compliance solution for payment page script monitoring and security",
+                ["Plugins.Misc.PaymentGuard.Refresh"] = "Refresh",
 
                 // Menu Items
                 ["Plugins.Misc.PaymentGuard.Menu"] = "Payment Guard",
@@ -420,6 +421,8 @@ namespace Nop.Plugin.Misc.PaymentGuard
                 ["Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.AlertLevel.Hint"] = "The severity level of the alert",
                 ["Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.Message"] = "Message",
                 ["Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.Message.Hint"] = "Brief description of the alert",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.Pageurl"] = "Page url",
+                ["Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.Pageurl.Hint"] = "Page url of script file from which got alert.",
                 ["Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.Details"] = "Details",
                 ["Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.Details.Hint"] = "Detailed information about the alert",
                 ["Plugins.Misc.PaymentGuard.ComplianceAlert.Fields.IsResolved"] = "Resolved",

@@ -17,13 +17,13 @@ namespace Nop.Plugin.Misc.PaymentGuard.Validators
         public AuthorizedScriptValidator(ILocalizationService localizationService)
         {
             RuleFor(x => x.ScriptUrl).NotEmpty()
-                .WithMessageAwait(localizationService.GetResourceAsync("Plugins.Misc.PaymentGuard.Fields.ScriptUrl.Required"))
+                .WithMessageAwait(localizationService.GetResourceAsync("Plugins.Misc.PaymentGuard.ScriptManagement.Fields.ScriptUrl.Required"))
                 .Must(BeAValidUrl)
-                .WithMessageAwait(localizationService.GetResourceAsync("Plugins.Misc.PaymentGuard.Fields.ScriptUrl.InvalidFormat"))
+                .WithMessageAwait(localizationService.GetResourceAsync("Plugins.Misc.PaymentGuard.ScriptManagement.Fields.ScriptUrl.InvalidFormat"))
                 .Must(BeHttpsUrl)
-                .WithMessageAwait(localizationService.GetResourceAsync("Plugins.Misc.PaymentGuard.Fields.ScriptUrl.MustBeHttps"));
-            RuleFor(x => x.Purpose).NotEmpty().WithMessageAwait(localizationService.GetResourceAsync("Plugins.Misc.PaymentGuard.Fields.Purpose.Required"));
-            RuleFor(x => x.Justification).NotEmpty().WithMessageAwait(localizationService.GetResourceAsync("Plugins.Misc.PaymentGuard.Fields.Justification.Required"));
+                .WithMessageAwait(localizationService.GetResourceAsync("Plugins.Misc.PaymentGuard.ScriptManagement.Fields.ScriptUrl.MustBeHttps"));
+            RuleFor(x => x.Purpose).NotEmpty().WithMessageAwait(localizationService.GetResourceAsync("Plugins.Misc.PaymentGuard.ScriptManagement.Fields.Purpose.Required"));
+            RuleFor(x => x.Justification).NotEmpty().WithMessageAwait(localizationService.GetResourceAsync("Plugins.Misc.PaymentGuard.ScriptManagement.Fields.Justification.Required"));
         }
 
         private static bool BeAValidUrl(string url)

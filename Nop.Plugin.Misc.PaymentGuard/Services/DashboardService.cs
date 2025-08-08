@@ -1,5 +1,7 @@
 ﻿using System.Text.Json;
+using DocumentFormat.OpenXml.Drawing.Charts;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using Nop.Core.Domain.Logging;
 using Nop.Data;
 using Nop.Plugin.Misc.PaymentGuard.Domain;
 using Nop.Plugin.Misc.PaymentGuard.Dto;
@@ -43,21 +45,27 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
             var fromDate = DateTime.UtcNow.AddDays(-days);
             var weekAgo = DateTime.UtcNow.AddDays(-7);
 
-            var currentPeriodAlerts = await _complianceAlertRepository.Table
-                .Where(alert => alert.StoreId == storeId && alert.CreatedOnUtc >= weekAgo)
-                .ToListAsync();
+            var query = _complianceAlertRepository.Table.Where(alert => alert.CreatedOnUtc >= weekAgo);
+            if (storeId > 0)
+                query = query.Where(alert => alert.StoreId == storeId);
+            var currentPeriodAlerts = await query.ToListAsync();
 
-            var previousPeriodAlerts = await _complianceAlertRepository.Table
-                .Where(alert => alert.StoreId == storeId
-                    && alert.CreatedOnUtc >= weekAgo.AddDays(-7)
-                    && alert.CreatedOnUtc < weekAgo)
-                .ToListAsync();
+
+            var previousQuery = _complianceAlertRepository.Table
+                .Where(alert => alert.CreatedOnUtc >= weekAgo.AddDays(-7)
+                    && alert.CreatedOnUtc < weekAgo);
+            if (storeId > 0)
+                previousQuery = previousQuery.Where(alert => alert.StoreId == storeId);
+            var previousPeriodAlerts = await previousQuery.ToListAsync();
 
             var resolvedThisWeek = currentPeriodAlerts.Count(a => a.IsResolved);
             var newThisWeek = currentPeriodAlerts.Count;
 
-            var scriptsAddedThisWeek = await _authorizedScriptRepository.Table
-                .CountAsync(script => script.StoreId == storeId && script.AuthorizedOnUtc >= weekAgo);
+            var scriptsQuery = _authorizedScriptRepository.Table
+                .Where(script => script.AuthorizedOnUtc >= weekAgo);
+            if (storeId > 0)
+                scriptsQuery = scriptsQuery.Where(script => script.StoreId == storeId);
+            var scriptsAddedThisWeek = await scriptsQuery.CountAsync();
 
             // Calculate compliance improvement
             var currentCompliance = await GetCurrentComplianceScore(storeId);
@@ -78,9 +86,12 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
         private async Task<PerformanceMetrics> GetPerformanceMetricsAsync(int storeId, int days)
         {
             var fromDate = DateTime.UtcNow.AddDays(-days);
-            var logs = await _monitoringLogRepository.Table
-                .Where(log => log.StoreId == storeId && log.CheckedOnUtc >= fromDate)
-                .ToListAsync();
+            
+            var query = _monitoringLogRepository.Table.Where(log => log.CheckedOnUtc >= fromDate);
+            if (storeId > 0)
+                query = query.Where(log => log.StoreId == storeId);
+
+            var logs = await query.ToListAsync();
 
             var successfulChecks = logs.Count(log => !log.HasUnauthorizedScripts);
             var failedChecks = logs.Count - successfulChecks;
@@ -208,9 +219,11 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
             var fromDate = DateTime.UtcNow.AddDays(-days);
             var today = DateTime.UtcNow.Date;
 
-            var alerts = await _complianceAlertRepository.Table
-                .Where(alert => alert.StoreId == storeId && alert.CreatedOnUtc >= fromDate)
-                .ToListAsync();
+            var query = _complianceAlertRepository.Table.Where(alert => alert.CreatedOnUtc >= fromDate);
+            if (storeId > 0)
+                query = query.Where(alert => alert.StoreId == storeId);
+
+            var alerts = await query.ToListAsync();
 
             var resolvedAlerts = alerts.Where(a => a.IsResolved && a.ResolvedOnUtc.HasValue).ToList();
 
@@ -240,9 +253,11 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
             var lastHour = DateTime.UtcNow.AddHours(-1);
             var last24Hours = DateTime.UtcNow.AddDays(-1);
 
-            var recentAlerts = await _complianceAlertRepository.Table
-                .Where(alert => alert.StoreId == storeId && alert.CreatedOnUtc >= last24Hours)
-                .ToListAsync();
+            var query = _complianceAlertRepository.Table.Where(alert => alert.CreatedOnUtc >= last24Hours);
+            if (storeId > 0)
+                query = query.Where(alert => alert.StoreId == storeId);
+
+            var recentAlerts = await query.ToListAsync();
 
             var systemStatus = "healthy";
             if (recentAlerts.Any(a => !a.IsResolved && a.AlertLevel == "critical"))
@@ -268,7 +283,7 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
             var fromDate = DateTime.UtcNow.AddHours(-hours);
 
             var alerts = await _complianceAlertRepository.Table
-                .Where(alert => alert.StoreId == storeId && alert.CreatedOnUtc >= fromDate)
+                .Where(alert => (storeId == 0 || alert.StoreId == storeId) && alert.CreatedOnUtc >= fromDate)
                 .OrderByDescending(alert => alert.CreatedOnUtc)
                 .Take(maxCount)
                 .ToListAsync();
@@ -294,14 +309,14 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
             var fromDate = DateTime.UtcNow.AddDays(-days);
 
             var alerts = await _complianceAlertRepository.Table
-                .Where(alert => alert.StoreId == storeId && alert.CreatedOnUtc >= fromDate)
+                .Where(alert => (storeId == 0 || alert.StoreId == storeId) && alert.CreatedOnUtc >= fromDate)
                 .ToListAsync();
 
             var trendData = alerts
                 .GroupBy(alert => alert.CreatedOnUtc.Date)
                 .Select(group => new AlertTrendData
                 {
-                    Date = group.Key,
+                    Date = group.Key.Date,
                     TotalAlerts = group.Count(),
                     CriticalAlerts = group.Count(a => a.AlertLevel == "critical"),
                     WarningAlerts = group.Count(a => a.AlertLevel == "warning"),
@@ -322,7 +337,7 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
             var fromDate = DateTime.UtcNow.AddDays(-days);
 
             var resolvedAlerts = await _complianceAlertRepository.Table
-                .Where(alert => alert.StoreId == storeId
+                .Where(alert => (storeId == 0 || alert.StoreId == storeId)
                     && alert.IsResolved
                     && alert.ResolvedOnUtc.HasValue
                     && alert.CreatedOnUtc >= fromDate)
@@ -351,7 +366,7 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
             // This could be enhanced to track actual active sessions
             // For now, return count based on recent client-side activity
             var recentAlerts = await _complianceAlertRepository.Table
-                .Where(alert => alert.StoreId == storeId
+                .Where(alert => (storeId == 0 || alert.StoreId == storeId)
                     && alert.CreatedOnUtc >= DateTime.UtcNow.AddMinutes(-30))
                 .CountAsync();
 
@@ -433,10 +448,11 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
         public virtual async Task<IList<ComplianceChartDataPoint>> GetComplianceHistoryAsync(int storeId, int days = 30)
         {
             var fromDate = DateTime.UtcNow.AddDays(-days);
-            var logs = await _monitoringLogRepository.Table
-                .Where(log => log.StoreId == storeId && log.CheckedOnUtc >= fromDate)
-                .OrderBy(log => log.CheckedOnUtc)
-                .ToListAsync();
+
+            var logsQuery = _monitoringLogRepository.Table.Where(log => log.CheckedOnUtc >= fromDate);
+            if (storeId > 0)
+                logsQuery = logsQuery.Where(log => log.StoreId == storeId);
+            var logs = await logsQuery.OrderBy(log => log.CheckedOnUtc).ToListAsync();
 
             var groupedByDay = logs
                 .GroupBy(log => log.CheckedOnUtc.Date)
@@ -459,9 +475,11 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
         public virtual async Task<IList<AlertTypeChartData>> GetAlertTypeDistributionAsync(int storeId, int days = 30)
         {
             var fromDate = DateTime.UtcNow.AddDays(-days);
-            var alerts = await _complianceAlertRepository.Table
-                .Where(alert => alert.StoreId == storeId && alert.CreatedOnUtc >= fromDate)
-                .GroupBy(alert => alert.AlertType)
+
+            var alertsQuery = _complianceAlertRepository.Table.Where(alert => alert.CreatedOnUtc >= fromDate);
+            if (storeId > 0)
+                alertsQuery = alertsQuery.Where(log => log.StoreId == storeId);
+            var alerts = await alertsQuery.GroupBy(alert => alert.AlertType)
                 .Select(group => new
                 {
                     AlertType = group.Key,
@@ -486,9 +504,11 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
         public virtual async Task<IList<MonitoringTrendData>> GetMonitoringTrendsAsync(int storeId, int days = 30)
         {
             var fromDate = DateTime.UtcNow.AddDays(-days);
-            var logs = await _monitoringLogRepository.Table
-                .Where(log => log.StoreId == storeId && log.CheckedOnUtc >= fromDate)
-                .ToListAsync();
+
+            var logsQuery = _monitoringLogRepository.Table.Where(log => log.CheckedOnUtc >= fromDate);
+            if (storeId > 0)
+                logsQuery = logsQuery.Where(log => log.StoreId == storeId);
+            var logs = await logsQuery.ToListAsync();
 
             var trendData = logs
                 .GroupBy(log => log.CheckedOnUtc.Date)
@@ -507,9 +527,10 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
 
         public virtual async Task<IList<RiskLevelData>> GetRiskLevelBreakdownAsync(int storeId)
         {
-            var scripts = await _authorizedScriptRepository.Table
-                .Where(script => script.StoreId == storeId && script.IsActive)
-                .GroupBy(script => script.RiskLevel)
+            var scriptsQuery = _authorizedScriptRepository.Table.Where(script => script.IsActive);
+            if (storeId > 0)
+                scriptsQuery = scriptsQuery.Where(log => log.StoreId == storeId);
+            var scripts = await scriptsQuery.GroupBy(script => script.RiskLevel)
                 .Select(group => new
                 {
                     RiskLevel = group.Key,
@@ -539,11 +560,11 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
         public virtual async Task<IList<TopViolatingScriptsData>> GetTopViolatingScriptsAsync(int storeId, int days = 30, int topCount = 10)
         {
             var fromDate = DateTime.UtcNow.AddDays(-days);
-            var alerts = await _complianceAlertRepository.Table
-                .Where(alert => alert.StoreId == storeId
-                    && alert.CreatedOnUtc >= fromDate
-                    && !string.IsNullOrEmpty(alert.ScriptUrl))
-                .GroupBy(alert => alert.ScriptUrl)
+            var alertsQuery = _complianceAlertRepository.Table.Where(alert => alert.CreatedOnUtc >= fromDate
+                    && !string.IsNullOrEmpty(alert.ScriptUrl));
+            if (storeId > 0)
+                alertsQuery = alertsQuery.Where(log => log.StoreId == storeId);
+            var alerts = await alertsQuery.GroupBy(alert => alert.ScriptUrl)
                 .Select(group => new
                 {
                     ScriptUrl = group.Key,
@@ -559,7 +580,7 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
             foreach (var alert in alerts)
             {
                 var authorizedScript = await _authorizedScriptRepository.Table
-                    .FirstOrDefaultAsync(script => script.ScriptUrl == alert.ScriptUrl && script.StoreId == storeId);
+                    .FirstOrDefaultAsync(script => script.ScriptUrl == alert.ScriptUrl && (storeId == 0 || script.StoreId == storeId));
 
                 result.Add(new TopViolatingScriptsData
                 {

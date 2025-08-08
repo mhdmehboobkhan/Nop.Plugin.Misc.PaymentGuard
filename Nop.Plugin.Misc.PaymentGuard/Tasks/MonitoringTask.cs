@@ -61,24 +61,24 @@ namespace Nop.Plugin.Misc.PaymentGuard.Tasks
                     {
                         try
                         {
-                            var pageUrl = $"{store.Url.TrimEnd('/')}{page.Trim()}";
-                            var log = await _monitoringService.PerformMonitoringCheckAsync(pageUrl, store.Id);
+                            //var pageUrl = $"{store.Url.TrimEnd('/')}{page.Trim()}";
+                            //var log = await _monitoringService.PerformMonitoringCheckAsync(pageUrl, store.Id);
 
-                            if (log.HasUnauthorizedScripts)
-                            {
-                                await _logger.WarningAsync($"Unauthorized scripts detected on {page} for store {store.Id}: {log.UnauthorizedScriptsCount} scripts");
+                            //if (log.HasUnauthorizedScripts)
+                            //{
+                            //    await _logger.WarningAsync($"Unauthorized scripts detected on {page} for store {store.Id}: {log.UnauthorizedScriptsCount} scripts");
 
-                                // TODO: Send alert email if enabled
-                                if (settings.EnableEmailAlerts && !string.IsNullOrEmpty(settings.AlertEmail))
-                                {
-                                    await _emailAlertService.SendUnauthorizedScriptAlertAsync(
-                                        settings.AlertEmail, log, store.Name);
-                                }
-                            }
-                            else
-                            {
-                                await _logger.InformationAsync($"Monitoring check completed successfully for {page} - no issues found");
-                            }
+                            //    // TODO: Send alert email if enabled
+                            //    if (settings.EnableEmailAlerts && !string.IsNullOrEmpty(settings.AlertEmail))
+                            //    {
+                            //        await _emailAlertService.SendUnauthorizedScriptAlertAsync(
+                            //            settings.AlertEmail, log, store.Name);
+                            //    }
+                            //}
+                            //else
+                            //{
+                            //    await _logger.InformationAsync($"Monitoring check completed successfully for {page} - no issues found");
+                            //}
                         }
                         catch (Exception ex)
                         {

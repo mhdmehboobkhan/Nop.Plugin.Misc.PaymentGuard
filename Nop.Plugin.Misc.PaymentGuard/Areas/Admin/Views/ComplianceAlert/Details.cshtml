@@ -81,10 +81,9 @@
                                     <dd class="col-sm-8">
                                         @if (!string.IsNullOrEmpty(Model.PageUrl))
                                         {
-                                            <a href="@Model.PageUrl" target="_blank" title="@Model.PageUrl">
+                                            <code title="@Model.PageUrl">
                                                 @(Model.PageUrl.Length > 60 ? Model.PageUrl.Substring(0, 60) + "..." : Model.PageUrl)
-                                                <i class="fas fa-external-link-alt"></i>
-                                            </a>
+                                            </code>
                                         }
                                         else
                                         {
@@ -236,7 +235,9 @@
 <script>
     function resolveAlert(alertId) {
         if (confirm('@T("Plugins.Misc.PaymentGuard.ComplianceAlert.Confirm.Resolve")')) {
-            $.post('@Url.Action("Resolve", "ComplianceAlert")', { id: alertId })
+            var data = { id: alertId };
+            addAntiForgeryToken(data);
+            $.post('@Url.Action("Resolve", "ComplianceAlert")', data)
                 .done(function(result) {
                     if (result.success) {
                         location.reload();
@@ -252,7 +253,9 @@
 
     function deleteAlert(alertId) {
         if (confirm('@T("Admin.Common.DeleteConfirmation")')) {
-            $.post('@Url.Action("Delete", "ComplianceAlert")', { id: alertId })
+            var data = { id: alertId };
+            addAntiForgeryToken(data);
+            $.post('@Url.Action("Delete", "ComplianceAlert")', data)
                 .done(function(result) {
                     if (result.success) {
                         window.location.href = '@Url.Action("List", "ComplianceAlert")';

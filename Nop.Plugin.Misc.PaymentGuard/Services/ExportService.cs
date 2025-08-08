@@ -1,5 +1,7 @@
 ﻿using System.Text;
 using System.Text.Json;
+using iTextSharp.text;
+using iTextSharp.text.pdf;
 using Nop.Plugin.Misc.PaymentGuard.Domain;
 using Nop.Plugin.Misc.PaymentGuard.Dto;
 using Nop.Services.Stores;
@@ -38,43 +40,19 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
             return value.Replace("\"", "\"\"");
         }
 
-        private string GenerateComplianceReportHtml(string storeName, ComplianceReport report, DateTime? fromDate, DateTime? toDate)
+        private void AddSummaryRow(PdfPTable table, string label, string value)
         {
-            var html = new StringBuilder();
-            html.AppendLine("<!DOCTYPE html>");
-            html.AppendLine("<html><head><title>PaymentGuard Compliance Report</title>");
-            html.AppendLine("<style>body{font-family:Arial,sans-serif;margin:20px;}table{border-collapse:collapse;width:100%;}th,td{border:1px solid #ddd;padding:8px;text-align:left;}th{background-color:#f2f2f2;}.header{text-align:center;margin-bottom:30px;}.summary{margin:20px 0;}</style>");
-            html.AppendLine("</head><body>");
+            var boldFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 11);
+            var normalFont = FontFactory.GetFont(FontFactory.HELVETICA, 11);
 
-            html.AppendLine($"<div class='header'><h1>PaymentGuard Compliance Report</h1><h2>{storeName}</h2>");
-            html.AppendLine($"<p>Generated: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC</p>");
-            if (fromDate.HasValue || toDate.HasValue)
-                html.AppendLine($"<p>Period: {fromDate?.ToString("yyyy-MM-dd") ?? "Beginning"} to {toDate?.ToString("yyyy-MM-dd") ?? "End"}</p>");
-            html.AppendLine("</div>");
+            PdfPCell cell1 = new PdfPCell(new Phrase(label, boldFont));
+            cell1.BackgroundColor = new BaseColor(242, 242, 242); // light gray
+            cell1.Padding = 5;
+            table.AddCell(cell1);
 
-            html.AppendLine("<div class='summary'><h3>Compliance Summary</h3>");
-            html.AppendLine("<table>");
-            html.AppendLine($"<tr><td><strong>Compliance Score</strong></td><td>{report.ComplianceScore:F1}%</td></tr>");
-            html.AppendLine($"<tr><td><strong>Total Scripts Monitored</strong></td><td>{report.TotalScriptsMonitored}</td></tr>");
-            html.AppendLine($"<tr><td><strong>Authorized Scripts</strong></td><td>{report.AuthorizedScriptsCount}</td></tr>");
-            html.AppendLine($"<tr><td><strong>Unauthorized Scripts</strong></td><td>{report.UnauthorizedScriptsCount}</td></tr>");
-            html.AppendLine($"<tr><td><strong>Total Checks Performed</strong></td><td>{report.TotalChecksPerformed}</td></tr>");
-            html.AppendLine($"<tr><td><strong>Alerts Generated</strong></td><td>{report.AlertsGenerated}</td></tr>");
-            html.AppendLine($"<tr><td><strong>Last Check Date</strong></td><td>{report.LastCheckDate:yyyy-MM-dd HH:mm:ss}</td></tr>");
-            html.AppendLine("</table></div>");
-
-            if (report.MostCommonUnauthorizedScripts.Any())
-            {
-                html.AppendLine("<div><h3>Most Common Unauthorized Scripts</h3><ul>");
-                foreach (var script in report.MostCommonUnauthorizedScripts)
-                {
-                    html.AppendLine($"<li>{script}</li>");
-                }
-                html.AppendLine("</ul></div>");
-            }
-
-            html.AppendLine("</body></html>");
-            return html.ToString();
+            PdfPCell cell2 = new PdfPCell(new Phrase(value, normalFont));
+            cell2.Padding = 5;
+            table.AddCell(cell2);
         }
 
         #endregion
@@ -159,17 +137,90 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
 
         public virtual async Task<byte[]> GenerateComplianceReportPdfAsync(int storeId, DateTime? fromDate = null, DateTime? toDate = null)
         {
-            // This would require a PDF generation library like iTextSharp or similar
-            // For now, returning a simple HTML-to-PDF conversion approach
-
             var store = await _storeService.GetStoreByIdAsync(storeId);
+            var storeName = store?.Name ?? "";
             var report = await _monitoringService.GenerateComplianceReportAsync(storeId, fromDate, toDate);
 
-            var html = GenerateComplianceReportHtml(store.Name, report, fromDate, toDate);
+            using (var memoryStream = new MemoryStream())
+            {
+                // Create PDF Document
+                Document document = new Document(PageSize.A4, 25, 25, 25, 25);
+                PdfWriter.GetInstance(document, memoryStream);
+                document.Open();
 
-            // Convert HTML to PDF (would need PDF library implementation)
-            // For demonstration, returning HTML as bytes
-            return Encoding.UTF8.GetBytes(html);
+                // --- Header ---
+                var titleFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 18);
+                var subTitleFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 14);
+                var normalFont = FontFactory.GetFont(FontFactory.HELVETICA, 11);
+
+                Paragraph title = new Paragraph("PaymentGuard Compliance Report", titleFont)
+                {
+                    Alignment = Element.ALIGN_CENTER,
+                    SpacingAfter = 10
+                };
+                document.Add(title);
+
+                if (!string.IsNullOrEmpty(storeName))
+                {
+                    Paragraph storeNameParagraph = new Paragraph(storeName, subTitleFont)
+                    {
+                        Alignment = Element.ALIGN_CENTER,
+                        SpacingAfter = 5
+                    };
+                    document.Add(storeNameParagraph);
+                }
+
+                Paragraph generatedDate = new Paragraph($"Generated: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC", normalFont)
+                {
+                    Alignment = Element.ALIGN_CENTER
+                };
+                document.Add(generatedDate);
+
+                if (fromDate.HasValue || toDate.HasValue)
+                {
+                    Paragraph period = new Paragraph($"Period: {fromDate?.ToString("yyyy-MM-dd") ?? "Beginning"} to {toDate?.ToString("yyyy-MM-dd") ?? "End"}", normalFont)
+                    {
+                        Alignment = Element.ALIGN_CENTER
+                    };
+                    document.Add(period);
+                }
+
+                document.Add(new Paragraph("\n"));
+
+                // --- Compliance Summary Table ---
+                Paragraph summaryHeader = new Paragraph("Compliance Summary", subTitleFont)
+                {
+                    SpacingAfter = 10
+                };
+                document.Add(summaryHeader);
+
+                PdfPTable summaryTable = new PdfPTable(2) { WidthPercentage = 100 };
+                summaryTable.SetWidths(new float[] { 40f, 60f });
+
+                AddSummaryRow(summaryTable, "Compliance Score", $"{report.ComplianceScore:F1}%");
+                AddSummaryRow(summaryTable, "Total Scripts Monitored", report.TotalScriptsMonitored.ToString());
+                AddSummaryRow(summaryTable, "Authorized Scripts", report.AuthorizedScriptsCount.ToString());
+                AddSummaryRow(summaryTable, "Unauthorized Scripts", report.UnauthorizedScriptsCount.ToString());
+                AddSummaryRow(summaryTable, "Total Checks Performed", report.TotalChecksPerformed.ToString());
+                AddSummaryRow(summaryTable, "Alerts Generated", report.AlertsGenerated.ToString());
+                AddSummaryRow(summaryTable, "Last Check Date", report.LastCheckDate.ToString("yyyy-MM-dd HH:mm:ss"));
+
+                document.Add(summaryTable);
+
+                // --- Most Common Unauthorized Scripts ---
+                if (report.MostCommonUnauthorizedScripts.Any())
+                {
+                    document.Add(new Paragraph("\nMost Common Unauthorized Scripts", subTitleFont));
+
+                    foreach (var script in report.MostCommonUnauthorizedScripts)
+                    {
+                        document.Add(new Paragraph($"• {script}", normalFont));
+                    }
+                }
+
+                document.Close();
+                return memoryStream.ToArray();
+            }
         }
 
         #endregion

@@ -5,6 +5,7 @@ using Nop.Data;
 using Nop.Plugin.Misc.PaymentGuard.Domain;
 using Nop.Plugin.Misc.PaymentGuard.Dto;
 using Nop.Services.Logging;
+using Nop.Services.Stores;
 
 namespace Nop.Plugin.Misc.PaymentGuard.Services
 {
@@ -17,6 +18,9 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
         private readonly HttpClient _httpClient;
         private readonly ISRIValidationService _sriValidationService;
         private readonly ILogger _logger;
+        private readonly IComplianceAlertService _complianceAlertService;
+        private readonly IStoreService _storeService;
+        private readonly IEmailAlertService _emailAlertService;
 
         #endregion
 
@@ -26,20 +30,314 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
             IAuthorizedScriptService authorizedScriptService,
             HttpClient httpClient,
             ISRIValidationService sriValidationService,
-            ILogger logger)
+            ILogger logger,
+            IComplianceAlertService complianceAlertService,
+            IStoreService storeService,
+            IEmailAlertService emailAlertService)
         {
             _monitoringLogRepository = monitoringLogRepository;
             _authorizedScriptService = authorizedScriptService;
             _httpClient = httpClient;
             _sriValidationService = sriValidationService;
             _logger = logger;
+            _complianceAlertService = complianceAlertService;
+            _storeService = storeService;
+            _emailAlertService = emailAlertService;
+        }
+
+        #endregion
+
+        #region Utilities
+
+        private ScriptValidationResult CreateUnauthorizedResult(string scriptUrl)
+        {
+            return new ScriptValidationResult
+            {
+                ScriptUrl = scriptUrl,
+                IsAuthorized = false,
+                HasValidSRI = false,
+                SRIValidation = new SRIValidationResult
+                {
+                    IsValid = false,
+                    Error = "Script is not in authorized list",
+                    ScriptUrl = scriptUrl
+                }
+            };
+        }
+
+        private async Task<ScriptValidationResult> ValidateWithBrowserIntegrity(AuthorizedScript authorizedScript,
+            PaymentGuardSettings settings, int storeId, string browserIntegrity)
+        {
+            var result = new ScriptValidationResult { ScriptUrl = authorizedScript.ScriptUrl, IsAuthorized = true };
+
+            if (string.IsNullOrEmpty(authorizedScript.ScriptHash))
+            {
+                // No stored hash - handle missing hash scenario
+                return await HandleMissingStoredHash(authorizedScript, browserIntegrity, settings);
+            }
+
+            // Compare browser hash with stored ScriptHash
+            var hashMatch = string.Equals(browserIntegrity, authorizedScript.ScriptHash, StringComparison.OrdinalIgnoreCase);
+
+            if (hashMatch)
+            {
+                // Hashes match - validation successful
+                result.HasValidSRI = true;
+                result.SRIValidation = new SRIValidationResult
+                {
+                    IsValid = true,
+                    CurrentHash = browserIntegrity,
+                    ExpectedHash = authorizedScript.ScriptHash,
+                    ScriptUrl = authorizedScript.ScriptUrl
+                };
+
+                // Update LastVerifiedUtc
+                authorizedScript.LastVerifiedUtc = DateTime.UtcNow;
+                await _authorizedScriptService.UpdateAuthorizedScriptAsync(authorizedScript);
+
+                await _logger.InformationAsync($"SRI validation passed: {authorizedScript.ScriptUrl}");
+            }
+            else
+            {
+                // Hash mismatch - potential security issue
+                return await HandleHashMismatch(authorizedScript, storeId, browserIntegrity, settings);
+            }
+
+            return result;
+        }
+
+        private async Task<ScriptValidationResult> ValidateWithoutBrowserIntegrity(AuthorizedScript authorizedScript, PaymentGuardSettings settings)
+        {
+            var result = new ScriptValidationResult { ScriptUrl = authorizedScript.ScriptUrl, IsAuthorized = true };
+
+            result.HasValidSRI = false;
+            result.SRIValidation = new SRIValidationResult
+            {
+                IsValid = false,
+                Error = "No integrity attribute present in browser",
+                ScriptUrl = authorizedScript.ScriptUrl,
+                ExpectedHash = authorizedScript.ScriptHash
+            };
+
+            // If we have a stored hash but browser doesn't provide integrity, this is a security concern
+            if (!string.IsNullOrEmpty(authorizedScript.ScriptHash))
+            {
+                result.SRIValidation.Error = "Script should have integrity attribute but browser provided none";
+                await _logger.WarningAsync($"Missing SRI in browser for script that should have it: {authorizedScript.ScriptUrl}");
+
+                // Create alert for missing SRI
+                await CreateMissingSRIAlert(authorizedScript);
+            }
+
+            return result;
+        }
+
+        private async Task<ScriptValidationResult> HandleMissingStoredHash(AuthorizedScript authorizedScript, string browserIntegrity, PaymentGuardSettings settings)
+        {
+            var result = new ScriptValidationResult { ScriptUrl = authorizedScript.ScriptUrl, IsAuthorized = true };
+
+            // Script is authorized but has no stored hash
+            // Option 1: Auto-update with browser hash (if trusted domain)
+            // Option 2: Require manual hash update
+
+            if (IsTrustedDomain(authorizedScript.ScriptUrl))
+            {
+                // Auto-update hash for trusted domains
+                authorizedScript.ScriptHash = browserIntegrity;
+                authorizedScript.LastVerifiedUtc = DateTime.UtcNow;
+                await _authorizedScriptService.UpdateAuthorizedScriptAsync(authorizedScript);
+
+                result.HasValidSRI = true;
+                result.SRIValidation = new SRIValidationResult
+                {
+                    IsValid = true,
+                    CurrentHash = browserIntegrity,
+                    ExpectedHash = browserIntegrity,
+                    ScriptUrl = authorizedScript.ScriptUrl,
+                    Error = "Hash auto-updated for trusted domain"
+                };
+
+                await _logger.InformationAsync($"Auto-updated hash for trusted script: {authorizedScript.ScriptUrl}");
+                await CreateHashUpdatedAlert(authorizedScript, null, browserIntegrity);
+            }
+            else
+            {
+                // Require manual update for non-trusted domains
+                result.HasValidSRI = false;
+                result.SRIValidation = new SRIValidationResult
+                {
+                    IsValid = false,
+                    CurrentHash = browserIntegrity,
+                    ExpectedHash = null,
+                    ScriptUrl = authorizedScript.ScriptUrl,
+                    Error = "Authorized script has no stored hash - manual update required"
+                };
+
+                await CreateHashMissingAlert(authorizedScript, browserIntegrity);
+            }
+
+            return result;
+        }
+
+        private async Task<ScriptValidationResult> HandleHashMismatch(AuthorizedScript authorizedScript, int storeId, 
+            string browserIntegrity, PaymentGuardSettings settings)
+        {
+            var result = new ScriptValidationResult { ScriptUrl = authorizedScript.ScriptUrl, IsAuthorized = true };
+
+            await _logger.WarningAsync($"SRI Hash Mismatch - Script: {authorizedScript.ScriptUrl}, Stored: {authorizedScript.ScriptHash}, Browser: {browserIntegrity}");
+
+            // Check if script content actually changed by getting current content hash
+            var currentContentValidation = await _sriValidationService.ValidateScriptIntegrityAsync(authorizedScript.ScriptUrl, null);
+            var contentChanged = !string.IsNullOrEmpty(currentContentValidation.CurrentHash) &&
+                                !string.Equals(currentContentValidation.CurrentHash, authorizedScript.ScriptHash, StringComparison.OrdinalIgnoreCase);
+
+            if (contentChanged)
+            {
+                // Script content has actually changed - serious security concern
+                await _logger.ErrorAsync($"SECURITY ALERT - Script content changed: {authorizedScript.ScriptUrl}");
+                await CreateScriptContentChangedAlert(settings, 
+                    authorizedScript, storeId, browserIntegrity, 
+                    currentContentValidation.CurrentHash);
+
+                result.HasValidSRI = false;
+                result.SRIValidation = new SRIValidationResult
+                {
+                    IsValid = false,
+                    CurrentHash = browserIntegrity,
+                    ExpectedHash = authorizedScript.ScriptHash,
+                    ScriptUrl = authorizedScript.ScriptUrl,
+                    Error = $"Script content changed - needs re-authorization. Current content hash: {currentContentValidation.CurrentHash}"
+                };
+            }
+            else
+            {
+                // Browser hash differs but content is same - could be encoding issue or suspicious
+                result.HasValidSRI = false;
+                result.SRIValidation = new SRIValidationResult
+                {
+                    IsValid = false,
+                    CurrentHash = browserIntegrity,
+                    ExpectedHash = authorizedScript.ScriptHash,
+                    ScriptUrl = authorizedScript.ScriptUrl,
+                    Error = "Browser integrity hash differs from stored hash but content appears unchanged"
+                };
+
+                await _logger.WarningAsync($"Suspicious hash mismatch: {authorizedScript.ScriptUrl}");
+            }
+
+            return result;
+        }
+
+        // Helper method to check trusted domains
+        private static bool IsTrustedDomain(string scriptUrl)
+        {
+            var trustedDomains = new[]
+            {
+                "cdnjs.cloudflare.com",
+                "cdn.jsdelivr.net",
+                "code.jquery.com",
+                "stackpath.bootstrapcdn.com",
+                "ajax.googleapis.com",
+                "maxcdn.bootstrapcdn.com"
+            };
+
+            return trustedDomains.Any(domain => scriptUrl.Contains(domain, StringComparison.OrdinalIgnoreCase));
+        }
+
+        // Missing alert creation methods
+        private async Task CreateMissingSRIAlert(AuthorizedScript authorizedScript)
+        {
+            await _complianceAlertService.CreateIntegrityFailureAlertAsync(
+                authorizedScript.StoreId,
+                authorizedScript.ScriptUrl,
+                "checkout", // or get current page URL
+                JsonSerializer.Serialize(new
+                {
+                    AlertType = "missing-sri",
+                    ScriptId = authorizedScript.Id,
+                    ExpectedHash = authorizedScript.ScriptHash,
+                    Issue = "Script should have integrity attribute but browser provided none",
+                    Timestamp = DateTime.UtcNow
+                })
+            );
+        }
+
+        private async Task CreateHashMissingAlert(AuthorizedScript authorizedScript, string browserIntegrity)
+        {
+            await _complianceAlertService.CreateIntegrityFailureAlertAsync(
+                authorizedScript.StoreId,
+                authorizedScript.ScriptUrl,
+                "checkout",
+                JsonSerializer.Serialize(new
+                {
+                    AlertType = "hash-missing-in-authorized-script",
+                    ScriptId = authorizedScript.Id,
+                    BrowserHash = browserIntegrity,
+                    Issue = "Authorized script has no stored hash",
+                    Recommendation = "Update authorized script with proper hash",
+                    Timestamp = DateTime.UtcNow
+                })
+            );
+        }
+
+        private async Task CreateHashUpdatedAlert(AuthorizedScript authorizedScript, string oldHash, string newHash)
+        {
+            await _complianceAlertService.CreateIntegrityFailureAlertAsync(
+                authorizedScript.StoreId,
+                authorizedScript.ScriptUrl,
+                "checkout",
+                JsonSerializer.Serialize(new
+                {
+                    AlertType = "hash-auto-updated",
+                    ScriptId = authorizedScript.Id,
+                    OldHash = oldHash,
+                    NewHash = newHash,
+                    Issue = "Script hash automatically updated",
+                    Timestamp = DateTime.UtcNow
+                })
+            );
+        }
+
+        private async Task CreateScriptContentChangedAlert(PaymentGuardSettings settings, 
+            AuthorizedScript authorizedScript, int storeId, string browserHash, string currentContentHash)
+        {
+            // Create critical alert for script content change
+            await _complianceAlertService.CreateIntegrityFailureAlertAsync(
+                authorizedScript.StoreId,
+                authorizedScript.ScriptUrl,
+                "checkout",
+                JsonSerializer.Serialize(new
+                {
+                    AlertType = "script-content-changed",
+                    AlertLevel = "critical",
+                    ScriptId = authorizedScript.Id,
+                    StoredHash = authorizedScript.ScriptHash,
+                    BrowserHash = browserHash,
+                    CurrentContentHash = currentContentHash,
+                    Issue = "Script content has changed and needs re-authorization",
+                    SecurityImplication = "Potential security compromise - script content modified",
+                    RecommendedAction = "Immediately review script content and re-authorize if legitimate",
+                    Timestamp = DateTime.UtcNow
+                })
+            );
+
+            // Also send email alert if enabled
+            if (settings.EnableEmailAlerts && !string.IsNullOrEmpty(settings.AlertEmail))
+            {
+                var store = await _storeService.GetStoreByIdAsync(storeId);
+                await _emailAlertService.SendScriptChangeAlertAsync(
+                    settings.AlertEmail,
+                    authorizedScript.ScriptUrl,
+                    store.Name
+                );
+            }
         }
 
         #endregion
 
         #region Methods
 
-        public virtual async Task<ScriptMonitoringLog> PerformMonitoringCheckAsync(string pageUrl, int storeId)
+        /*public virtual async Task<ScriptMonitoringLog> PerformMonitoringCheckAsync(string pageUrl, int storeId)
         {
             var detectedScripts = await ExtractScriptsFromPageAsync(pageUrl);
             var securityHeaders = await ExtractSecurityHeadersAsync(pageUrl);
@@ -85,7 +383,7 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
 
             await InsertMonitoringLogAsync(log);
             return log;
-        }
+        }*/
 
         public virtual async Task<IList<string>> ExtractScriptsFromPageAsync(string pageUrl)
         {
@@ -221,7 +519,10 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
 
         public virtual async Task<ComplianceReport> GenerateComplianceReportAsync(int storeId, DateTime? fromDate = null, DateTime? toDate = null)
         {
-            var query = _monitoringLogRepository.Table.Where(log => log.StoreId == storeId);
+            var query = _monitoringLogRepository.Table;
+
+            if (storeId > 0)
+                query = query.Where(log => log.StoreId == storeId);
 
             if (fromDate.HasValue)
                 query = query.Where(log => log.CheckedOnUtc >= fromDate.Value);
@@ -273,35 +574,31 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
             return report;
         }
 
-        public async Task<ScriptValidationResult> ValidateScriptWithSRIAsync(int storeId, string scriptUrl, string integrity = null)
+        public virtual async Task<ScriptValidationResult> ValidateScriptWithSRIAsync(PaymentGuardSettings guardSettings, 
+            int storeId, string scriptUrl, string browserIntegrity = null)
         {
             var result = new ScriptValidationResult { ScriptUrl = scriptUrl };
 
-            // 1. Check if script is authorized
-            var isAuthorized = await _authorizedScriptService.IsScriptAuthorizedAsync(scriptUrl, storeId); // TODO: pass actual store ID
-            result.IsAuthorized = isAuthorized;
+            // 1. Get authorized script from existing table
+            var authorizedScript = await _authorizedScriptService.GetAuthorizedScriptByUrlAsync(scriptUrl, storeId);
+            result.IsAuthorized = authorizedScript != null && authorizedScript.IsActive;
 
-            // 2. If script has integrity attribute, validate it
-            if (!string.IsNullOrEmpty(integrity))
+            if (!result.IsAuthorized)
             {
-                var sriResult = await _sriValidationService.ValidateScriptIntegrityAsync(scriptUrl, integrity);
-                result.SRIValidation = sriResult;
-                result.HasValidSRI = sriResult.IsValid;
+                return CreateUnauthorizedResult(scriptUrl);
+            }
+
+            // 2. If browser provided integrity hash, validate against stored ScriptHash
+            if (!string.IsNullOrEmpty(browserIntegrity))
+            {
+                return await ValidateWithBrowserIntegrity(authorizedScript, guardSettings, storeId, browserIntegrity);
             }
             else
             {
-                result.HasValidSRI = false;
-                result.SRIValidation = new SRIValidationResult
-                {
-                    IsValid = false,
-                    Error = "No integrity attribute present",
-                    ScriptUrl = scriptUrl
-                };
+                return await ValidateWithoutBrowserIntegrity(authorizedScript, guardSettings);
             }
-
-            return result;
         }
-        
+
         #endregion
     }
 }

@@ -12,15 +12,22 @@
         @T("Plugins.Misc.PaymentGuard.Menu.ScriptManagement")
     </h1>
     <div class="float-right">
-        <div class="btn-group ml-2" role="group">
-            <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-toggle="dropdown">
-                <i class="fas fa-download"></i> @T("Plugins.Misc.PaymentGuard.ExportToCsv")
+        <div class="btn-group">
+            <button type="button" class="btn btn-success">
+                <i class="fas fa-download"></i>
+                @T("Admin.Common.Export")
             </button>
-            <div class="dropdown-menu">
-                <a class="dropdown-item" href="javascript:void(0)" onclick="exportScriptsToCsv()">
-                    <i class="fas fa-file-csv"></i> @T("Plugins.Misc.PaymentGuard.ExportToCsv")
-                </a>
-            </div>
+            <button type="button" class="btn btn-success dropdown-toggle dropdown-icon" data-toggle="dropdown" aria-expanded="false">
+                <span class="sr-only">&nbsp;</span>
+            </button>
+            <ul class="dropdown-menu" role="menu">
+                <li class="dropdown-item">
+                    <button type="button" name="exporttocsv" onclick="exportScriptsToCsv()">
+                        <i class="far fa-file-csv"></i>
+                        @T("Plugins.Misc.PaymentGuard.ExportToCsv")
+                    </button>
+                </li>
+            </ul>
         </div>
 
         <a asp-action="Create" class="btn btn-primary">
@@ -181,6 +188,7 @@
             SearchRiskLevel: $('#SearchRiskLevel').val(),
             SearchSource: $('#SearchSource').val()
         };
+        addAntiForgeryToken(searchModel);
 
         // Create form and submit
         var form = $('<form method="post" action="@Url.Action("ExportScriptsToCsv")">');

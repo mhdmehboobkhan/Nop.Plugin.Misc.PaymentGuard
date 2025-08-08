@@ -2,6 +2,7 @@
 using System.Text;
 using Microsoft.AspNetCore.Hosting;
 using Nop.Core;
+using Nop.Core.Domain.Stores;
 
 namespace Nop.Plugin.Misc.PaymentGuard.Helpers
 {
@@ -57,7 +58,7 @@ namespace Nop.Plugin.Misc.PaymentGuard.Helpers
         /// <param name="content">File content</param>
         /// <param name="algorithm">Hash algorithm</param>
         /// <returns>Base64 encoded hash</returns>
-        private static string GenerateHash(object content, string algorithm)
+        private string GenerateHash(object content, string algorithm)
         {
             byte[] bytes = content switch
             {
@@ -140,6 +141,67 @@ namespace Nop.Plugin.Misc.PaymentGuard.Helpers
                 // Return empty string on error - SRI is optional
                 return string.Empty;
             }
+        }
+
+        public virtual List<string> FilterExternalScripts(List<string> allScripts, Store store)
+        {
+            var externalScripts = new List<string>();
+            var storeUrl = store.Url?.TrimEnd('/') ?? "";
+
+            foreach (var scriptUrl in allScripts)
+            {
+                if (IsLocalScript(scriptUrl, storeUrl))
+                    continue;
+
+                externalScripts.Add(scriptUrl);
+            }
+
+            return externalScripts;
+        }
+
+        public virtual bool IsLocalScript(string scriptUrl, string storeUrl)
+        {
+            // Check for relative URLs
+            if (scriptUrl.StartsWith('/') || scriptUrl.StartsWith("~/"))
+                return true;
+
+            // Check for same origin (store URL)
+            if (!string.IsNullOrEmpty(storeUrl) && scriptUrl.StartsWith(storeUrl, StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            // Check for localhost and local IPs
+            if (scriptUrl.Contains("localhost", StringComparison.OrdinalIgnoreCase) ||
+                scriptUrl.Contains("127.0.0.1") ||
+                scriptUrl.Contains("::1"))
+                return true;
+
+            // Skip PaymentGuard's own scripts
+            if (scriptUrl.Contains("PaymentGuard", StringComparison.OrdinalIgnoreCase) ||
+                scriptUrl.Contains("paymentguard", StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            // Skip common local libraries that are typically bundled
+            var localLibraryPatterns = new[]
+            {
+                "/lib/",
+                "/js/",
+                "/scripts/",
+                "/assets/",
+                "lib_npm",
+                "jquery.min.js",
+                "bootstrap.min.js",
+                "admin.common.js",
+                "adminlte.min.js",
+                "jquery-ui.min.js",
+                "jquery.validate",
+                "bootstrap.bundle.min.js",
+                "jquery-migrate"
+            };
+
+            if (localLibraryPatterns.Any(pattern => scriptUrl.Contains(pattern, StringComparison.OrdinalIgnoreCase)))
+                return true;
+
+            return false;
         }
 
         #endregion

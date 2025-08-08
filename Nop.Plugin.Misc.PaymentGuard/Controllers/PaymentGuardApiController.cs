@@ -4,6 +4,7 @@ using Nop.Core;
 using Nop.Core.Domain.Logging;
 using Nop.Plugin.Misc.PaymentGuard.Domain;
 using Nop.Plugin.Misc.PaymentGuard.Dto;
+using Nop.Plugin.Misc.PaymentGuard.Helpers;
 using Nop.Plugin.Misc.PaymentGuard.Services;
 using Nop.Services.Configuration;
 using Nop.Services.Logging;
@@ -24,6 +25,9 @@ namespace Nop.Plugin.Misc.PaymentGuard.Controllers
         private readonly IStoreService _storeService;
         private readonly ISettingService _settingService;
         private readonly ILogger _logger;
+        private readonly SRIHelper _sriHelper;
+        private readonly ISRIValidationService _sriValidationService;
+        private readonly PaymentGuardSettings _paymentGuardSettings;
 
         #endregion
 
@@ -36,7 +40,10 @@ namespace Nop.Plugin.Misc.PaymentGuard.Controllers
             IStoreContext storeContext,
             IStoreService storeService,
             ISettingService settingService,
-            ILogger logger)
+            ILogger logger,
+            SRIHelper sriHelper,
+            ISRIValidationService sriValidationService,
+            PaymentGuardSettings paymentGuardSettings)
         {
             _authorizedScriptService = authorizedScriptService;
             _monitoringService = monitoringService;
@@ -46,6 +53,9 @@ namespace Nop.Plugin.Misc.PaymentGuard.Controllers
             _storeService = storeService;
             _settingService = settingService;
             _logger = logger;
+            _sriHelper = sriHelper;
+            _sriValidationService = sriValidationService;
+            _paymentGuardSettings = paymentGuardSettings;
         }
 
         #endregion
@@ -119,8 +129,6 @@ namespace Nop.Plugin.Misc.PaymentGuard.Controllers
             try
             {
                 var store = await _storeContext.GetCurrentStoreAsync();
-                var settings = await _settingService.LoadSettingAsync<PaymentGuardSettings>(store.Id);
-
                 await _logger.WarningAsync($"Security violation reported: {request.ViolationType} - {request.ScriptUrl} on {request.PageUrl}");
 
                 // Create compliance alert based on violation type
@@ -181,13 +189,13 @@ namespace Nop.Plugin.Misc.PaymentGuard.Controllers
                 }
 
                 // Send email alert if enabled and alert was created (not duplicate)
-                if (alert != null && settings.EnableEmailAlerts && !string.IsNullOrEmpty(settings.AlertEmail))
+                if (alert != null && _paymentGuardSettings.EnableEmailAlerts && !string.IsNullOrEmpty(_paymentGuardSettings.AlertEmail))
                 {
                     // Check alert frequency to avoid spam
                     var shouldSendEmail = true;
-                    if (settings.MaxAlertFrequency > 0)
+                    if (_paymentGuardSettings.MaxAlertFrequency > 0)
                     {
-                        var recentAlerts = await _complianceAlertService.GetRecentAlertsAsync(store.Id, settings.MaxAlertFrequency);
+                        var recentAlerts = await _complianceAlertService.GetRecentAlertsAsync(store.Id, _paymentGuardSettings.MaxAlertFrequency);
                         var similarRecentAlert = recentAlerts.FirstOrDefault(a =>
                             a.AlertType == request.ViolationType &&
                             a.ScriptUrl == request.ScriptUrl);
@@ -203,7 +211,7 @@ namespace Nop.Plugin.Misc.PaymentGuard.Controllers
                             if (request.ViolationType?.ToLower().Contains("unauthorized") == true)
                             {
                                 await _emailAlertService.SendUnauthorizedScriptAlertAsync(
-                                    settings.AlertEmail,
+                                    _paymentGuardSettings.AlertEmail,
                                     new Domain.ScriptMonitoringLog
                                     {
                                         PageUrl = request.PageUrl,
@@ -219,7 +227,7 @@ namespace Nop.Plugin.Misc.PaymentGuard.Controllers
                             else
                             {
                                 await _emailAlertService.SendScriptChangeAlertAsync(
-                                    settings.AlertEmail,
+                                    _paymentGuardSettings.AlertEmail,
                                     request.ScriptUrl,
                                     store.Name);
                             }
@@ -264,7 +272,6 @@ namespace Nop.Plugin.Misc.PaymentGuard.Controllers
             try
             {
                 var store = await _storeContext.GetCurrentStoreAsync();
-                var settings = await _settingService.LoadSettingAsync<PaymentGuardSettings>(store.Id);
 
                 var violationDetails = JsonSerializer.Serialize(new
                 {
@@ -289,12 +296,12 @@ namespace Nop.Plugin.Misc.PaymentGuard.Controllers
                     violationDetails);
 
                 // Send email alert if enabled and alert was created (not duplicate)
-                if (alert != null && settings.EnableEmailAlerts && !string.IsNullOrEmpty(settings.AlertEmail))
+                if (alert != null && _paymentGuardSettings.EnableEmailAlerts && !string.IsNullOrEmpty(_paymentGuardSettings.AlertEmail))
                 {
                     try
                     {
                         await _emailAlertService.SendCSPViolationAlertAsync(
-                            settings.AlertEmail,
+                            _paymentGuardSettings.AlertEmail,
                             violationDetails,
                             store.Name);
 
@@ -334,20 +341,348 @@ namespace Nop.Plugin.Misc.PaymentGuard.Controllers
             try
             {
                 var store = await _storeContext.GetCurrentStoreAsync();
-                var result = await _monitoringService.ValidateScriptWithSRIAsync(store.Id, request.ScriptUrl, request.Integrity);
 
-                return Json(new
+                // Check authorization first
+                var isAuthorized = await _authorizedScriptService.IsScriptAuthorizedAsync(request.ScriptUrl, store.Id);
+
+                // If script has integrity attribute, validate it
+                if (!string.IsNullOrEmpty(request.Integrity))
                 {
-                    success = true,
-                    isAuthorized = result.IsAuthorized,
-                    hasValidSRI = result.HasValidSRI,
-                    sriError = result.SRIValidation?.Error
-                });
+                    var result = await _monitoringService.ValidateScriptWithSRIAsync(_paymentGuardSettings,
+                        store.Id, request.ScriptUrl, request.Integrity);
+
+                    await _logger.InformationAsync($"SRI validation with integrity - Script: {request.ScriptUrl}, Valid: {result.HasValidSRI}, Authorized: {result.IsAuthorized}");
+
+                    return Json(new
+                    {
+                        success = true,
+                        isAuthorized = result.IsAuthorized,
+                        hasValidSRI = result.HasValidSRI,
+                        sriError = result.SRIValidation?.Error,
+                        providedIntegrity = request.Integrity
+                    });
+                }
+                // If forced validation (no integrity provided), generate hash for reference
+                else if (request.ForceValidation)
+                {
+                    try
+                    {
+                        var generatedHash = await _sriValidationService.ValidateScriptIntegrityAsync(request.ScriptUrl, null);
+
+                        await _logger.InformationAsync($"Forced SRI validation - Script: {request.ScriptUrl}, Generated hash: {generatedHash.CurrentHash}, Authorized: {isAuthorized}");
+
+                        return Json(new
+                        {
+                            success = true,
+                            isAuthorized = isAuthorized,
+                            hasValidSRI = false, // No integrity to validate against
+                            generatedHash = generatedHash.CurrentHash,
+                            sriError = "No integrity attribute provided",
+                            message = "Hash generated for future SRI implementation"
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        await _logger.ErrorAsync($"Error generating hash for script {request.ScriptUrl}", ex);
+
+                        return Json(new
+                        {
+                            success = true,
+                            isAuthorized = isAuthorized,
+                            hasValidSRI = false,
+                            generatedHash = "",
+                            sriError = $"Could not generate hash: {ex.Message}"
+                        });
+                    }
+                }
+                // Regular validation without SRI
+                else
+                {
+                    await _logger.InformationAsync($"Regular validation (no SRI) - Script: {request.ScriptUrl}, Authorized: {isAuthorized}");
+
+                    return Json(new
+                    {
+                        success = true,
+                        isAuthorized = isAuthorized,
+                        hasValidSRI = false,
+                        sriError = "No integrity attribute present"
+                    });
+                }
             }
             catch (Exception ex)
             {
                 await _logger.ErrorAsync($"Error validating script with SRI {request.ScriptUrl}", ex);
                 return Json(new { success = false, error = "Validation failed" });
+            }
+        }
+
+        [HttpPost]
+        [Route("Plugins/PaymentGuard/Api/ReportMonitoringSession")]
+        public async Task<IActionResult> ReportMonitoringSession([FromBody] MonitoringSessionRequest request)
+        {
+            try
+            {
+                var store = await _storeContext.GetCurrentStoreAsync();
+
+                // Filter and validate reported scripts
+                var externalScripts = _sriHelper.FilterExternalScripts(request.DetectedScripts, store);
+                var authorizedCount = 0;
+                var unauthorizedScripts = new List<string>();
+
+                foreach (var scriptUrl in externalScripts)
+                {
+                    var isAuthorized = await _authorizedScriptService.IsScriptAuthorizedAsync(scriptUrl, store.Id);
+                    if (isAuthorized)
+                        authorizedCount++;
+                    else
+                        unauthorizedScripts.Add(scriptUrl);
+                }
+
+                // Count local scripts as authorized (they don't need explicit authorization)
+                var localScriptsCount = request.DetectedScripts.Count - externalScripts.Count;
+                authorizedCount += localScriptsCount;
+
+                // Create ScriptMonitoringLog entry
+                var log = new ScriptMonitoringLog
+                {
+                    StoreId = store.Id,
+                    PageUrl = request.PageUrl,
+                    DetectedScripts = JsonSerializer.Serialize(request.DetectedScripts),
+                    HttpHeaders = JsonSerializer.Serialize(request.Headers ?? new Dictionary<string, string>()),
+                    HasUnauthorizedScripts = unauthorizedScripts.Any(),
+                    UnauthorizedScripts = JsonSerializer.Serialize(unauthorizedScripts),
+                    CheckedOnUtc = DateTime.UtcNow,
+                    CheckType = request.CheckType ?? "client-side",
+                    UserAgent = request.UserAgent,
+                    TotalScriptsFound = request.DetectedScripts.Count,
+                    AuthorizedScriptsCount = authorizedCount,
+                    UnauthorizedScriptsCount = unauthorizedScripts.Count,
+                    AlertSent = false
+                };
+
+                await _monitoringService.InsertMonitoringLogAsync(log);
+
+                // Create compliance alerts for unauthorized scripts
+                if (unauthorizedScripts.Any())
+                {
+                    foreach (var scriptUrl in unauthorizedScripts)
+                    {
+                        await _complianceAlertService.CreateUnauthorizedScriptAlertAsync(
+                            store.Id,
+                            scriptUrl,
+                            request.PageUrl,
+                            JsonSerializer.Serialize(new
+                            {
+                                SessionId = request.SessionId,
+                                Context = request.Context,
+                                DetectionMethod = "enhanced-client-monitoring",
+                                PaymentScripts = request.PaymentScripts,
+                                Timestamp = DateTime.UtcNow
+                            })
+                        );
+                    }
+
+                    await _logger.WarningAsync($"Enhanced monitoring detected {unauthorizedScripts.Count} unauthorized scripts on {request.PageUrl} - Session: {request.SessionId}");
+                }
+
+                return Json(new
+                {
+                    success = true,
+                    logId = log.Id,
+                    authorizedCount = authorizedCount,
+                    unauthorizedCount = unauthorizedScripts.Count,
+                    unauthorizedScripts = unauthorizedScripts
+                });
+            }
+            catch (Exception ex)
+            {
+                await _logger.ErrorAsync($"Error processing monitoring session report", ex);
+                return Json(new { success = false, error = "Failed to process monitoring session" });
+            }
+        }
+
+        [HttpPost]
+        [Route("Plugins/PaymentGuard/Api/ReportAjaxMonitoring")]
+        public async Task<IActionResult> ReportAjaxMonitoring([FromBody] AjaxMonitoringRequest request)
+        {
+            try
+            {
+                var store = await _storeContext.GetCurrentStoreAsync();
+
+                // Process new scripts detected after AJAX - filter external only
+                var externalScripts = _sriHelper.FilterExternalScripts(request.NewScripts, store);
+                var authorizedCount = 0;
+                var unauthorizedScripts = new List<string>();
+
+                foreach (var scriptUrl in externalScripts)
+                {
+                    var isAuthorized = await _authorizedScriptService.IsScriptAuthorizedAsync(scriptUrl, store.Id);
+                    if (isAuthorized)
+                        authorizedCount++;
+                    else
+                        unauthorizedScripts.Add(scriptUrl);
+                }
+
+                // Count local scripts as authorized
+                var localScriptsCount = request.NewScripts.Count - externalScripts.Count;
+                authorizedCount += localScriptsCount;
+
+                // Create monitoring log entry for AJAX-detected scripts
+                var log = new ScriptMonitoringLog
+                {
+                    StoreId = store.Id,
+                    PageUrl = request.PageUrl,
+                    DetectedScripts = JsonSerializer.Serialize(request.NewScripts),
+                    HttpHeaders = JsonSerializer.Serialize(new Dictionary<string, string>
+                    {
+                        ["X-Detection-Method"] = "ajax-monitoring",
+                        ["X-Ajax-Source"] = request.AjaxSource,
+                        ["X-Session-Id"] = request.SessionId
+                    }),
+                    HasUnauthorizedScripts = unauthorizedScripts.Any(),
+                    UnauthorizedScripts = JsonSerializer.Serialize(unauthorizedScripts),
+                    CheckedOnUtc = DateTime.UtcNow,
+                    CheckType = $"ajax-{request.AjaxSource}",
+                    UserAgent = request.UserAgent,
+                    TotalScriptsFound = request.NewScripts.Count,
+                    AuthorizedScriptsCount = authorizedCount,
+                    UnauthorizedScriptsCount = unauthorizedScripts.Count,
+                    AlertSent = false
+                };
+
+                await _monitoringService.InsertMonitoringLogAsync(log);
+
+                // Create alerts for unauthorized scripts
+                if (unauthorizedScripts.Any())
+                {
+                    foreach (var scriptUrl in unauthorizedScripts)
+                    {
+                        await _complianceAlertService.CreateUnauthorizedScriptAlertAsync(
+                            store.Id,
+                            scriptUrl,
+                            request.PageUrl,
+                            JsonSerializer.Serialize(new
+                            {
+                                SessionId = request.SessionId,
+                                AjaxSource = request.AjaxSource,
+                                Context = request.Context,
+                                DetectionMethod = "ajax-monitoring",
+                                PreAjaxScripts = request.PreAjaxScripts,
+                                Timestamp = DateTime.UtcNow
+                            })
+                        );
+                    }
+                }
+
+                await _logger.InformationAsync($"AJAX monitoring detected {request.NewScripts.Count} new scripts ({unauthorizedScripts.Count} unauthorized) - Source: {request.AjaxSource}, Session: {request.SessionId}");
+
+                return Json(new
+                {
+                    success = true,
+                    logId = log.Id,
+                    newScriptsCount = request.NewScripts.Count,
+                    authorizedCount = authorizedCount,
+                    unauthorizedCount = unauthorizedScripts.Count
+                });
+            }
+            catch (Exception ex)
+            {
+                await _logger.ErrorAsync($"Error processing AJAX monitoring report", ex);
+                return Json(new { success = false, error = "Failed to process AJAX monitoring" });
+            }
+        }
+
+        [HttpPost]
+        [Route("Plugins/PaymentGuard/Api/ReportPaymentMethodMonitoring")]
+        public async Task<IActionResult> ReportPaymentMethodMonitoring([FromBody] PaymentMethodMonitoringRequest request)
+        {
+            try
+            {
+                var store = await _storeContext.GetCurrentStoreAsync();
+
+                // Process payment method scripts - filter external only
+                var externalScripts = _sriHelper.FilterExternalScripts(request.PaymentScripts, store);
+                var authorizedCount = 0;
+                var unauthorizedScripts = new List<string>();
+
+                foreach (var scriptUrl in externalScripts)
+                {
+                    var isAuthorized = await _authorizedScriptService.IsScriptAuthorizedAsync(scriptUrl, store.Id);
+                    if (isAuthorized)
+                        authorizedCount++;
+                    else
+                        unauthorizedScripts.Add(scriptUrl);
+                }
+
+                // Count local scripts as authorized
+                var localScriptsCount = request.PaymentScripts.Count - externalScripts.Count;
+                authorizedCount += localScriptsCount;
+
+                // Create monitoring log specifically for payment method changes
+                var log = new ScriptMonitoringLog
+                {
+                    StoreId = store.Id,
+                    PageUrl = request.PageUrl,
+                    DetectedScripts = JsonSerializer.Serialize(request.PaymentScripts),
+                    HttpHeaders = JsonSerializer.Serialize(new Dictionary<string, string>
+                    {
+                        ["X-Detection-Method"] = "payment-method-monitoring",
+                        ["X-Payment-Method"] = request.PaymentMethod,
+                        ["X-Session-Id"] = request.SessionId,
+                        ["X-Payment-Context"] = request.Context
+                    }),
+                    HasUnauthorizedScripts = unauthorizedScripts.Any(),
+                    UnauthorizedScripts = JsonSerializer.Serialize(unauthorizedScripts),
+                    CheckedOnUtc = DateTime.UtcNow,
+                    CheckType = $"payment-{request.PaymentMethod}",
+                    UserAgent = request.UserAgent,
+                    TotalScriptsFound = request.PaymentScripts.Count,
+                    AuthorizedScriptsCount = authorizedCount,
+                    UnauthorizedScriptsCount = unauthorizedScripts.Count,
+                    AlertSent = false
+                };
+
+                await _monitoringService.InsertMonitoringLogAsync(log);
+
+                // Enhanced alerts for payment-related violations
+                if (unauthorizedScripts.Any())
+                {
+                    foreach (var scriptUrl in unauthorizedScripts)
+                    {
+                        await _complianceAlertService.CreateUnauthorizedScriptAlertAsync(
+                            store.Id,
+                            scriptUrl,
+                            request.PageUrl,
+                            JsonSerializer.Serialize(new
+                            {
+                                SessionId = request.SessionId,
+                                PaymentMethod = request.PaymentMethod,
+                                Context = request.Context,
+                                DetectionMethod = "payment-method-monitoring",
+                                SecurityImplication = "HIGH - Payment processing script",
+                                Timestamp = DateTime.UtcNow
+                            })
+                        );
+                    }
+
+                    await _logger.WarningAsync($"CRITICAL: Unauthorized payment scripts detected for {request.PaymentMethod} - Scripts: {string.Join(", ", unauthorizedScripts)} - Session: {request.SessionId}");
+                }
+
+                return Json(new
+                {
+                    success = true,
+                    logId = log.Id,
+                    paymentMethod = request.PaymentMethod,
+                    paymentScriptsCount = request.PaymentScripts.Count,
+                    authorizedCount = authorizedCount,
+                    unauthorizedCount = unauthorizedScripts.Count,
+                    securityLevel = unauthorizedScripts.Any() ? "HIGH RISK" : "COMPLIANT"
+                });
+            }
+            catch (Exception ex)
+            {
+                await _logger.ErrorAsync($"Error processing payment method monitoring report", ex);
+                return Json(new { success = false, error = "Failed to process payment method monitoring" });
             }
         }
 
