@@ -181,7 +181,9 @@ namespace Nop.Plugin.Misc.PaymentGuard
                 CacheExpirationMinutes = 60,
                 EnableApiRateLimit = true,
                 ApiRateLimitPerHour = 1000,
-                WhitelistedIPs = ""
+                WhitelistedIPs = "",
+                TrustedDomains = "cdnjs.cloudflare.com,cdn.jsdelivr.net,code.jquery.com,stackpath.bootstrapcdn.com,ajax.googleapis.com,maxcdn.bootstrapcdn.com",
+                PaymentProviders = "stripe,paypal,square,braintree,razorpay,cardknox,authorize.net,payoneer,adyen"
             });
 
             if (!_widgetSettings.ActiveWidgetSystemNames.Contains(PaymentGuardDefaults.SystemName))
@@ -306,6 +308,7 @@ namespace Nop.Plugin.Misc.PaymentGuard
                 ["Plugins.Misc.PaymentGuard.Configuration.MaintenanceSettings.Help"] = "Configure automatic cleanup and caching behavior",
                 ["Plugins.Misc.PaymentGuard.Configuration.ApiSettings"] = "API Settings",
                 ["Plugins.Misc.PaymentGuard.Configuration.ApiSettings.Help"] = "Configure API rate limiting and security settings",
+                ["Plugins.Misc.PaymentGuard.Configuration.PaymentDetection"] = "Payment Detection Settings",
 
                 // Configuration Fields
                 ["Plugins.Misc.PaymentGuard.Configure.Fields.IsEnabled"] = "Enabled",
@@ -338,6 +341,10 @@ namespace Nop.Plugin.Misc.PaymentGuard
                 ["Plugins.Misc.PaymentGuard.Configure.Fields.WhitelistedIPs.Hint"] = "Comma-separated list of IP addresses that bypass rate limiting",
                 ["Plugins.Misc.PaymentGuard.Configure.Fields.CacheExpirationMinutes"] = "Cache Expiration (minutes)",
                 ["Plugins.Misc.PaymentGuard.Configure.Fields.CacheExpirationMinutes.Hint"] = "How long to cache script authorization lookups (recommended: 30-120 minutes)",
+                ["Plugins.Misc.PaymentGuard.Configure.Fields.TrustedDomains"] = "Trusted Domains",
+                ["Plugins.Misc.PaymentGuard.Configure.Fields.TrustedDomains.Hint"] = "Comma-separated list of trusted CDN domains for auto-hash updates (e.g., cdnjs.cloudflare.com,cdn.jsdelivr.net)",
+                ["Plugins.Misc.PaymentGuard.Configure.Fields.PaymentProviders"] = "Payment Providers",
+                ["Plugins.Misc.PaymentGuard.Configure.Fields.PaymentProviders.Hint"] = "Comma-separated list of payment provider keywords for script detection (e.g., stripe,paypal,square)",
 
                 // Validation Messages
                 ["Plugins.Misc.PaymentGuard.Configure.Fields.LogRetentionDays.Range"] = "Log retention must be between 1 and 365 days",

@@ -137,6 +137,8 @@ namespace Nop.Plugin.Misc.PaymentGuard.Controllers
                 EnableApiRateLimit = settings.EnableApiRateLimit,
                 ApiRateLimitPerHour = settings.ApiRateLimitPerHour,
                 WhitelistedIPs = settings.WhitelistedIPs,
+                TrustedDomains = settings.TrustedDomains,
+                PaymentProviders = settings.PaymentProviders,
 
                 ActiveStoreScopeConfiguration = storeScope
             };
@@ -162,6 +164,8 @@ namespace Nop.Plugin.Misc.PaymentGuard.Controllers
                 model.EnableApiRateLimit_OverrideForStore = await _settingService.SettingExistsAsync(settings, x => x.EnableApiRateLimit, storeScope);
                 model.ApiRateLimitPerHour_OverrideForStore = await _settingService.SettingExistsAsync(settings, x => x.ApiRateLimitPerHour, storeScope);
                 model.WhitelistedIPs_OverrideForStore = await _settingService.SettingExistsAsync(settings, x => x.WhitelistedIPs, storeScope);
+                model.TrustedDomains_OverrideForStore = await _settingService.SettingExistsAsync(settings, x => x.TrustedDomains, storeScope);
+                model.PaymentProviders_OverrideForStore = await _settingService.SettingExistsAsync(settings, x => x.PaymentProviders, storeScope);
             }
 
             return View(model);
@@ -195,6 +199,8 @@ namespace Nop.Plugin.Misc.PaymentGuard.Controllers
             settings.EnableApiRateLimit = model.EnableApiRateLimit;
             settings.ApiRateLimitPerHour = model.ApiRateLimitPerHour;
             settings.WhitelistedIPs = model.WhitelistedIPs;
+            settings.TrustedDomains = model.TrustedDomains;
+            settings.PaymentProviders = model.PaymentProviders;
 
             await _settingService.SaveSettingOverridablePerStoreAsync(settings, x => x.IsEnabled, model.IsEnabled_OverrideForStore, storeScope, false);
             //await _settingService.SaveSettingOverridablePerStoreAsync(settings, x => x.MonitoringFrequency, model.MonitoringFrequency_OverrideForStore, storeScope, false);
@@ -215,6 +221,8 @@ namespace Nop.Plugin.Misc.PaymentGuard.Controllers
             await _settingService.SaveSettingOverridablePerStoreAsync(settings, x => x.EnableApiRateLimit, model.EnableApiRateLimit_OverrideForStore, storeScope, false);
             await _settingService.SaveSettingOverridablePerStoreAsync(settings, x => x.ApiRateLimitPerHour, model.ApiRateLimitPerHour_OverrideForStore, storeScope, false);
             await _settingService.SaveSettingOverridablePerStoreAsync(settings, x => x.WhitelistedIPs, model.WhitelistedIPs_OverrideForStore, storeScope, false);
+            await _settingService.SaveSettingOverridablePerStoreAsync(settings, x => x.TrustedDomains, model.TrustedDomains_OverrideForStore, storeScope, false);
+            await _settingService.SaveSettingOverridablePerStoreAsync(settings, x => x.PaymentProviders, model.PaymentProviders_OverrideForStore, storeScope, false);
 
             await _settingService.ClearCacheAsync();
 

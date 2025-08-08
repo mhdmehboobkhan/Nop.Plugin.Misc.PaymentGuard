@@ -20,7 +20,7 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
 
         Task DeleteAuthorizedScriptAsync(AuthorizedScript script);
 
-        Task<bool> IsScriptAuthorizedAsync(string scriptUrl, int storeId);
+        Task<(bool isAuthorized, AuthorizedScript script)> IsScriptAuthorizedAsync(string scriptUrl, int storeId);
 
         Task<IList<AuthorizedScript>> GetAuthorizedScriptsByDomainAsync(string domain, int storeId);
 

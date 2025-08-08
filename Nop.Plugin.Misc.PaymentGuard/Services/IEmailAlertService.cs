@@ -14,5 +14,7 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
         Task SendCSPViolationAlertAsync(string alertEmail, string violationDetails, string storeName);
 
         Task SendExpiredScriptsAlertAsync(string alertEmail, IList<AuthorizedScript> expiredScripts, string storeName);
+
+        Task SendBlockedScriptAlertAsync(string alertEmail, string scriptUrl, string pageUrl, string storeName);
     }
 }

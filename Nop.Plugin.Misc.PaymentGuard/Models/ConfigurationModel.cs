@@ -77,6 +77,14 @@ namespace Nop.Plugin.Misc.PaymentGuard.Models
         [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Configure.Fields.WhitelistedIPs")]
         public string WhitelistedIPs { get; set; }
         public bool WhitelistedIPs_OverrideForStore { get; set; }
+        
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Configure.Fields.TrustedDomains")]
+        public string TrustedDomains { get; set; }
+        public bool TrustedDomains_OverrideForStore { get; set; }
+
+        [NopResourceDisplayName("Plugins.Misc.PaymentGuard.Configure.Fields.PaymentProviders")]
+        public string PaymentProviders { get; set; }
+        public bool PaymentProviders_OverrideForStore { get; set; }
 
         public int ActiveStoreScopeConfiguration { get; set; }
     }

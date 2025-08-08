@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Nop.Core;
+using Nop.Plugin.Misc.PaymentGuard.Helpers;
 using Nop.Plugin.Misc.PaymentGuard.Models;
 using Nop.Plugin.Misc.PaymentGuard.Services;
 using Nop.Services.Configuration;
@@ -15,19 +16,21 @@ namespace Nop.Plugin.Misc.PaymentGuard.Components
         private readonly IWebHelper _webHelper;
         private readonly IAuthorizedScriptService _authorizedScriptService;
         private readonly ILogger _logger;
-        
+        private readonly SRIHelper _sriHelper;
 
         public PaymentGuardViewComponent(ISettingService settingService,
             IStoreContext storeContext,
             IWebHelper webHelper,
             IAuthorizedScriptService authorizedScriptService,
-            ILogger logger)
+            ILogger logger,
+            SRIHelper sriHelper)
         {
             _settingService = settingService;
             _storeContext = storeContext;
             _webHelper = webHelper;
             _authorizedScriptService = authorizedScriptService;
             _logger = logger;
+            _sriHelper = sriHelper;
         }
 
         #region Utilities
@@ -90,14 +93,14 @@ namespace Nop.Plugin.Misc.PaymentGuard.Components
         public async Task<IViewComponentResult> InvokeAsync(string widgetZone, object additionalData = null)
         {
             var store = await _storeContext.GetCurrentStoreAsync();
-            var settings = await _settingService.LoadSettingAsync<PaymentGuardSettings>(store.Id);
+            var paymentGuardSettings = await _settingService.LoadSettingAsync<PaymentGuardSettings>(store.Id);
 
-            if (!settings.IsEnabled)
+            if (!paymentGuardSettings.IsEnabled)
                 return Content("");
 
             // Only inject on monitored pages
             var currentPage = _webHelper.GetThisPageUrl(false);
-            var monitoredPages = settings.MonitoredPages?.Split(',', StringSplitOptions.RemoveEmptyEntries)
+            var monitoredPages = paymentGuardSettings.MonitoredPages?.Split(',', StringSplitOptions.RemoveEmptyEntries)
                 ?? new[] { "/checkout", "/onepagecheckout" };
 
             var isMonitoredPage = monitoredPages.Any(page =>
@@ -107,20 +110,23 @@ namespace Nop.Plugin.Misc.PaymentGuard.Components
                 return Content("");
 
             // NEW: Generate dynamic CSP policy based on authorized scripts
-            string dynamicCSPPolicy = settings.CSPPolicy;
-            if (settings.EnableCSPHeaders)
+            string dynamicCSPPolicy = paymentGuardSettings.CSPPolicy;
+            if (paymentGuardSettings.EnableCSPHeaders)
             {
-                dynamicCSPPolicy = await GenerateDynamicCSPPolicyAsync(store.Id, settings.CSPPolicy);
+                dynamicCSPPolicy = await GenerateDynamicCSPPolicyAsync(store.Id, paymentGuardSettings.CSPPolicy);
             }
 
             var model = new PaymentGuardScriptModel
             {
-                IsEnabled = settings.IsEnabled,
+                IsEnabled = paymentGuardSettings.IsEnabled,
+                StoreId = store.Id,
                 ApiEndpoint = "/Plugins/PaymentGuard/Api",
                 CSPPolicy = dynamicCSPPolicy,
-                EnableSRIValidation = settings.EnableSRIValidation,
+                EnableSRIValidation = paymentGuardSettings.EnableSRIValidation,
                 CurrentPageUrl = currentPage,
-                StoreId = store.Id
+                TrustedDomains = _sriHelper.TrustedDomains(paymentGuardSettings),
+                PaymentProviders = _sriHelper.TrustedPaymentProviders(paymentGuardSettings),
+                LocalLibraryPatterns = _sriHelper.LocalLibraryPatterns()
             };
 
             return View(model);

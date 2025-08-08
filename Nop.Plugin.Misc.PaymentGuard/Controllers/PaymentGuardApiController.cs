@@ -69,7 +69,7 @@ namespace Nop.Plugin.Misc.PaymentGuard.Controllers
             try
             {
                 var store = await _storeContext.GetCurrentStoreAsync();
-                var isAuthorized = await _authorizedScriptService.IsScriptAuthorizedAsync(request.ScriptUrl, store.Id);
+                var (isAuthorized, _) = await _authorizedScriptService.IsScriptAuthorizedAsync(request.ScriptUrl, store.Id);
 
                 return Json(new { isAuthorized = isAuthorized });
             }
@@ -95,7 +95,7 @@ namespace Nop.Plugin.Misc.PaymentGuard.Controllers
 
                 foreach (var scriptUrl in request.Scripts)
                 {
-                    var isAuthorized = await _authorizedScriptService.IsScriptAuthorizedAsync(scriptUrl, store.Id);
+                    var (isAuthorized, _) = await _authorizedScriptService.IsScriptAuthorizedAsync(scriptUrl, store.Id);
                     if (!isAuthorized)
                     {
                         unauthorizedScripts.Add(scriptUrl);
@@ -119,6 +119,49 @@ namespace Nop.Plugin.Misc.PaymentGuard.Controllers
             {
                 await _logger.ErrorAsync($"Error processing reported scripts from {request.PageUrl}", ex);
                 return Json(new { success = false, error = "Processing failed" });
+            }
+        }
+
+        [HttpPost]
+        [Route("Plugins/PaymentGuard/Api/ReportBlockedScript")]
+        public async Task<IActionResult> ReportBlockedScript([FromBody] BlockedScriptDto request)
+        {
+            try
+            {
+                var store = await _storeContext.GetCurrentStoreAsync();
+
+                // Create high-priority security alert
+                await _complianceAlertService.CreateSecurityAlertAsync(
+                    store.Id,
+                    request.ScriptUrl,
+                    request.PageUrl,
+                    JsonSerializer.Serialize(new
+                    {
+                        ScriptUrl = request.ScriptUrl,
+                        PageUrl = request.PageUrl,
+                        BlockReason = request.BlockReason,
+                        UserAgent = request.UserAgent,
+                        DetectedAt = DateTime.UtcNow,
+                    })
+                );
+
+                // Send immediate email alert
+                if (_paymentGuardSettings.EnableEmailAlerts)
+                {
+                    await _emailAlertService.SendBlockedScriptAlertAsync(
+                        _paymentGuardSettings.AlertEmail,
+                        request.ScriptUrl,
+                        request.PageUrl,
+                        store.Name
+                    );
+                }
+
+                return Json(new { success = true });
+            }
+            catch (Exception ex)
+            {
+                await _logger.ErrorAsync("Error reporting blocked script", ex);
+                return Json(new { success = false });
             }
         }
 
@@ -343,13 +386,13 @@ namespace Nop.Plugin.Misc.PaymentGuard.Controllers
                 var store = await _storeContext.GetCurrentStoreAsync();
 
                 // Check authorization first
-                var isAuthorized = await _authorizedScriptService.IsScriptAuthorizedAsync(request.ScriptUrl, store.Id);
+                var (isAuthorized, _) = await _authorizedScriptService.IsScriptAuthorizedAsync(request.ScriptUrl, store.Id);
 
                 // If script has integrity attribute, validate it
                 if (!string.IsNullOrEmpty(request.Integrity))
                 {
                     var result = await _monitoringService.ValidateScriptWithSRIAsync(_paymentGuardSettings,
-                        store.Id, request.ScriptUrl, request.Integrity);
+                        store.Id, request.PageUrl, request.ScriptUrl, request.Integrity);
 
                     await _logger.InformationAsync($"SRI validation with integrity - Script: {request.ScriptUrl}, Valid: {result.HasValidSRI}, Authorized: {result.IsAuthorized}");
 
@@ -431,7 +474,7 @@ namespace Nop.Plugin.Misc.PaymentGuard.Controllers
 
                 foreach (var scriptUrl in externalScripts)
                 {
-                    var isAuthorized = await _authorizedScriptService.IsScriptAuthorizedAsync(scriptUrl, store.Id);
+                    var (isAuthorized, _) = await _authorizedScriptService.IsScriptAuthorizedAsync(scriptUrl, store.Id);
                     if (isAuthorized)
                         authorizedCount++;
                     else
@@ -516,7 +559,7 @@ namespace Nop.Plugin.Misc.PaymentGuard.Controllers
 
                 foreach (var scriptUrl in externalScripts)
                 {
-                    var isAuthorized = await _authorizedScriptService.IsScriptAuthorizedAsync(scriptUrl, store.Id);
+                    var (isAuthorized, _) = await _authorizedScriptService.IsScriptAuthorizedAsync(scriptUrl, store.Id);
                     if (isAuthorized)
                         authorizedCount++;
                     else
@@ -607,7 +650,7 @@ namespace Nop.Plugin.Misc.PaymentGuard.Controllers
 
                 foreach (var scriptUrl in externalScripts)
                 {
-                    var isAuthorized = await _authorizedScriptService.IsScriptAuthorizedAsync(scriptUrl, store.Id);
+                    var (isAuthorized, _) = await _authorizedScriptService.IsScriptAuthorizedAsync(scriptUrl, store.Id);
                     if (isAuthorized)
                         authorizedCount++;
                     else

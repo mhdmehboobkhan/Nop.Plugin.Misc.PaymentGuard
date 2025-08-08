@@ -76,6 +76,26 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
             await _complianceAlertRepository.DeleteAsync(alert);
         }
 
+        public virtual async Task<ComplianceAlert> CreateSecurityAlertAsync(int storeId, string scriptUrl, string pageUrl, string details)
+        {
+            var alert = new ComplianceAlert
+            {
+                StoreId = storeId,
+                AlertType = "security-alert",
+                AlertLevel = "critical",
+                Message = $"Missing SRI detected: {scriptUrl}",
+                Details = details,
+                ScriptUrl = scriptUrl,
+                PageUrl = pageUrl,
+                IsResolved = false,
+                CreatedOnUtc = DateTime.UtcNow,
+                ResolvedOnUtc = null
+            };
+
+            await InsertComplianceAlertAsync(alert);
+            return alert;
+        }
+
         public virtual async Task<ComplianceAlert> CreateUnauthorizedScriptAlertAsync(int storeId, string scriptUrl, string pageUrl, string details = null)
         {
             // Check if similar alert exists recently to avoid spam

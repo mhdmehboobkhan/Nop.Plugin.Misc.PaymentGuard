@@ -142,16 +142,16 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
             await _staticCacheManager.RemoveByPrefixAsync(AUTHORIZED_SCRIPTS_PATTERN_KEY);
         }
 
-        public virtual async Task<bool> IsScriptAuthorizedAsync(string scriptUrl, int storeId)
+        public virtual async Task<(bool isAuthorized, AuthorizedScript script)> IsScriptAuthorizedAsync(string scriptUrl, int storeId)
         {
             if (string.IsNullOrEmpty(scriptUrl))
-                return false;
+                return (false, null);
 
             // Try to get from cache first
             var cacheKey = _staticCacheManager.PrepareKey(SCRIPT_AUTHORIZATION_KEY,
                 GenerateScriptUrlHash(scriptUrl), storeId);
 
-            return await _staticCacheManager.GetAsync(cacheKey, async () =>
+            var scriptObj = await _staticCacheManager.GetAsync(cacheKey, async () =>
             {
                 var script = await GetAuthorizedScriptByUrlAsync(scriptUrl, storeId);
 
@@ -159,8 +159,10 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
                 if (script == null && storeId > 0)
                     script = await GetAuthorizedScriptByUrlAsync(scriptUrl, 0);
 
-                return script != null && script.IsActive;
+                return script;
             });
+
+            return (scriptObj != null && scriptObj.IsActive, scriptObj);
         }
 
         public virtual async Task<IList<AuthorizedScript>> GetAuthorizedScriptsByDomainAsync(string domain, int storeId)

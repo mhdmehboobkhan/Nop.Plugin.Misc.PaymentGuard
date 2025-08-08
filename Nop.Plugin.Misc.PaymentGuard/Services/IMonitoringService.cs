@@ -24,6 +24,6 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
         Task<ComplianceReport> GenerateComplianceReportAsync(int storeId, DateTime? fromDate = null, DateTime? toDate = null);
 
         Task<ScriptValidationResult> ValidateScriptWithSRIAsync(PaymentGuardSettings guardSettings, 
-            int storeId, string scriptUrl, string integrity = null);
+            int storeId, string pageUrl, string scriptUrl, string integrity = null);
     }
 }

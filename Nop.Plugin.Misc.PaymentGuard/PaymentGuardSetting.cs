@@ -4,38 +4,42 @@ namespace Nop.Plugin.Misc.PaymentGuard
 {
     public class PaymentGuardSettings : ISettings
     {
-        public bool IsEnabled { get; set; } = true;
+        public bool IsEnabled { get; set; }
 
-        public int MonitoringFrequency { get; set; } = 7; // Days
+        //public int MonitoringFrequency { get; set; } = 7; // Days
 
-        public string AlertEmail { get; set; } = "";
+        public string AlertEmail { get; set; }
 
-        public bool EnableEmailAlerts { get; set; } = true;
+        public bool EnableEmailAlerts { get; set; }
 
-        public bool EnableCSPHeaders { get; set; } = true;
+        public bool EnableCSPHeaders { get; set; }
 
-        public bool EnableSRIValidation { get; set; } = true;
+        public bool EnableSRIValidation { get; set; }
 
-        public string CSPPolicy { get; set; } = "script-src 'self' 'unsafe-inline';";
+        public string CSPPolicy { get; set; }
 
-        public bool EnableDetailedLogging { get; set; } = true;
+        public bool EnableDetailedLogging { get; set; }
 
-        public string MonitoredPages { get; set; } = "/checkout,/onepagecheckout"; // Comma separated
+        public string MonitoredPages { get; set; }
 
-        public int MaxAlertFrequency { get; set; } = 24; // Hours between same alerts
-                                                         // New Maintenance Settings
-        public int LogRetentionDays { get; set; } = 90; // Days to keep monitoring logs
+        public int MaxAlertFrequency { get; set; } // Hours between same alerts
+        
+        public int LogRetentionDays { get; set; } // Days to keep monitoring logs
 
-        public int AlertRetentionDays { get; set; } = 30; // Days to keep resolved alerts
+        public int AlertRetentionDays { get; set; } // Days to keep resolved alerts
 
-        public bool EnableAutomaticCleanup { get; set; } = true;
+        public bool EnableAutomaticCleanup { get; set; } 
 
-        public int CacheExpirationMinutes { get; set; } = 60; // Cache expiration for script authorization
+        public int CacheExpirationMinutes { get; set; } // Cache expiration for script authorization
 
-        public bool EnableApiRateLimit { get; set; } = true;
+        public bool EnableApiRateLimit { get; set; }
 
-        public int ApiRateLimitPerHour { get; set; } = 1000; // API calls per hour per IP
+        public int ApiRateLimitPerHour { get; set; } // API calls per hour per IP
 
-        public string WhitelistedIPs { get; set; } = ""; // Comma separated IPs that bypass rate limiting
+        public string WhitelistedIPs { get; set; } // Comma separated IPs that bypass rate limiting
+
+        public string TrustedDomains { get; set; }
+
+        public string PaymentProviders { get; set; }
     }
 }

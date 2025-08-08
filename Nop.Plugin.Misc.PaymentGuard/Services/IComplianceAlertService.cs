@@ -47,6 +47,9 @@ namespace Nop.Plugin.Misc.PaymentGuard.Services
         /// <param name="alert">Compliance alert</param>
         Task DeleteComplianceAlertAsync(ComplianceAlert alert);
 
+        Task<ComplianceAlert> CreateSecurityAlertAsync(int storeId, string scriptUrl, string pageUrl, string details);
+
+
         /// <summary>
         /// Create unauthorized script alert
         /// </summary>

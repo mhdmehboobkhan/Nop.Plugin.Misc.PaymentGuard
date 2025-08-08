@@ -21,7 +21,10 @@
             apiEndpoint: '@Model.ApiEndpoint',
             pageUrl: '@Model.CurrentPageUrl',
             storeId: @Model.StoreId,
-            enableSRI: @Model.EnableSRIValidation.ToString().ToLower()
+            enableSRI: @Model.EnableSRIValidation.ToString().ToLower(),
+            trustedDomains: @Html.Raw(Json.Serialize(Model.TrustedDomains)),
+            paymentProviders: @Html.Raw(Json.Serialize(Model.PaymentProviders)),
+            localLibraryPatterns: @Html.Raw(Json.Serialize(Model.LocalLibraryPatterns)),
         };
     </script>
 
@@ -63,37 +66,12 @@
                     }
 
                     // Skip common local libraries that are typically bundled
-                    const localLibraryPatterns = [
-                        '/lib/',
-                        '/js/',
-                        '/scripts/',
-                        '/assets/',
-                        'lib_npm',
-                        'jquery.min.js',
-                        'bootstrap.min.js',
-                        'admin.common.js',
-                        'adminlte.min.js',
-                        'jquery-ui.min.js',
-                        'jquery.validate',
-                        'bootstrap.bundle.min.js',
-                        'jquery-migrate'
-                    ];
-
-                    if (localLibraryPatterns.some(pattern => scriptUrl.includes(pattern))) {
+                    if (window.PaymentGuardConfig.localLibraryPatterns.some(pattern => scriptUrl.includes(pattern))) {
                         return false;
                     }
 
                     // ONLY require SRI for external CDN scripts from trusted sources
-                    const trustedCDNs = [
-                        'cdnjs.cloudflare.com',
-                        'cdn.jsdelivr.net',
-                        'ajax.googleapis.com',
-                        'code.jquery.com',
-                        'stackpath.bootstrapcdn.com',
-                        'maxcdn.bootstrapcdn.com'
-                    ];
-
-                    return trustedCDNs.some(cdn => scriptUrl.includes(cdn));
+                    return window.PaymentGuardConfig.trustedDomains.some(cdn => scriptUrl.includes(cdn));
                 }
 
                 // Function to validate and report script security

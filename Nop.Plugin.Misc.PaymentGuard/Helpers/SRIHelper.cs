@@ -159,6 +159,27 @@ namespace Nop.Plugin.Misc.PaymentGuard.Helpers
             return externalScripts;
         }
 
+        public virtual string[] LocalLibraryPatterns()
+        {
+            var localLibraryPatterns = new[]
+            {
+                "/lib/",
+                "/js/",
+                "/scripts/",
+                "/assets/",
+                "lib_npm",
+                "jquery.min.js",
+                "bootstrap.min.js",
+                "admin.common.js",
+                "adminlte.min.js",
+                "jquery-ui.min.js",
+                "jquery.validate",
+                "bootstrap.bundle.min.js",
+                "jquery-migrate"
+            };
+            return localLibraryPatterns;
+        }
+
         public virtual bool IsLocalScript(string scriptUrl, string storeUrl)
         {
             // Check for relative URLs
@@ -181,27 +202,32 @@ namespace Nop.Plugin.Misc.PaymentGuard.Helpers
                 return true;
 
             // Skip common local libraries that are typically bundled
-            var localLibraryPatterns = new[]
-            {
-                "/lib/",
-                "/js/",
-                "/scripts/",
-                "/assets/",
-                "lib_npm",
-                "jquery.min.js",
-                "bootstrap.min.js",
-                "admin.common.js",
-                "adminlte.min.js",
-                "jquery-ui.min.js",
-                "jquery.validate",
-                "bootstrap.bundle.min.js",
-                "jquery-migrate"
-            };
-
-            if (localLibraryPatterns.Any(pattern => scriptUrl.Contains(pattern, StringComparison.OrdinalIgnoreCase)))
+            if (LocalLibraryPatterns().Any(pattern => scriptUrl.Contains(pattern, StringComparison.OrdinalIgnoreCase)))
                 return true;
 
             return false;
+        }
+
+        public virtual string[] TrustedPaymentProviders(PaymentGuardSettings settings)
+        {
+            var trustedPaymentProviders = settings.PaymentProviders?.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(d => d.Trim().ToLowerInvariant()).ToArray() ?? Array.Empty<string>();
+            return trustedPaymentProviders;
+        }
+
+        public virtual string[] TrustedDomains(PaymentGuardSettings settings)
+        {
+            var trustedDomains = settings.TrustedDomains?.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(d => d.Trim().ToLowerInvariant()).ToArray() ?? Array.Empty<string>();
+            return trustedDomains;
+        }
+
+        public virtual bool IsTrustedDomain(PaymentGuardSettings settings, string scriptUrl)
+        {
+            if (string.IsNullOrEmpty(scriptUrl))
+                return false;
+
+            return TrustedDomains(settings).Any(domain => scriptUrl.Contains(domain, StringComparison.OrdinalIgnoreCase));
         }
 
         #endregion

@@ -62,12 +62,86 @@
     validateInitialScriptsSRI: function () {
       var self = this;
       this.initialScripts.forEach(function (scriptInfo) {
+        console.log(scriptInfo);
         if (scriptInfo.hasSRI) {
           self.validateScriptSRI(scriptInfo);
         } else if (self.shouldHaveSRI(scriptInfo.src)) {
+          // BLOCK the script execution
+          self.blockUnsafeScript(scriptInfo.src);
           self.reportSRIViolation(scriptInfo.src, 'missing-sri');
         }
       });
+    },
+
+    blockUnsafeScript: function (scriptUrl) {
+      console.error('PaymentGuard: BLOCKING unsafe script:', scriptUrl);
+
+      // Find and disable the script element
+      var scripts = document.querySelectorAll('script[src="' + scriptUrl + '"]');
+      scripts.forEach(function (script) {
+        if (script.parentNode) {
+          script.parentNode.removeChild(script);
+          console.warn('PaymentGuard: Removed unsafe script element:', scriptUrl);
+        }
+      });
+
+      var scriptDomain = this.getScriptDomain(scriptUrl);
+      // Remove iframes from the same domain
+      var iframes = document.querySelectorAll('iframe[src*="' + scriptDomain + '"]');
+      iframes.forEach(function (iframe) {
+        if (iframe.parentNode) {
+          iframe.parentNode.removeChild(iframe);
+          console.warn('PaymentGuard: Removed iframe from blocked domain:', iframe.src);
+        }
+      });
+
+      // Show simple alert for payment scripts
+      if (this.isPaymentScript(scriptUrl)) {
+        this.showPaymentBlockedWarning(scriptUrl);
+      }
+
+      // Report to monitoring service
+      this.reportBlockedScript(scriptUrl);
+    },
+
+    showPaymentBlockedWarning: function (scriptUrl) {
+      var message = 'SECURITY ALERT:\n\n' +
+        'Payment processing has been temporarily blocked for your security.\n\n' +
+        'Reason: Unverified payment script detected\n' +
+        'Script: ' + this.getScriptDomain(scriptUrl) + '\n\n' +
+        'Please contact support or try refreshing the page.\n\n' +
+        'Your security is our priority.';
+
+      alert(message);
+    },
+
+    reportBlockedScript: function (scriptUrl) {
+      var data = {
+        scriptUrl: scriptUrl,
+        pageUrl: window.location.href,
+        timestamp: new Date().toISOString(),
+        userAgent: navigator.userAgent,
+        blockReason: 'missing-sri-validation'
+      };
+
+      // Send to your monitoring endpoint
+      fetch(this.config.apiEndpoint + '/ReportBlockedScript', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      }).catch(function (err) {
+        console.error('PaymentGuard: Failed to report blocked script:', err);
+      });
+    },
+
+    // Helper to get clean domain name for user display
+    getScriptDomain: function (scriptUrl) {
+      try {
+        var url = new URL(scriptUrl);
+        return url.hostname;
+      } catch (e) {
+        return scriptUrl.substring(0, 50) + '...';
+      }
     },
 
     // Enhanced: shouldHaveSRI - using consistent local script detection
@@ -78,14 +152,7 @@
       }
 
       // Check if it's a trusted CDN that should have SRI
-      var trustedCDNs = [
-        'code.jquery.com',
-        'cdnjs.cloudflare.com',
-        'cdn.jsdelivr.net',
-        'stackpath.bootstrapcdn.com',
-        'maxcdn.bootstrapcdn.com',
-        'ajax.googleapis.com'
-      ];
+      var trustedCDNs = window.PaymentGuardConfig.trustedDomains;
 
       // Check if it's a payment script (these should be monitored closely)
       var isPaymentScript = this.isPaymentScript(scriptUrl);
@@ -651,12 +718,14 @@
 
       // Try to detect from script URLs
       var scripts = Array.from(this.paymentScripts);
+      var paymentProviders = window.PaymentGuardConfig.paymentProviders;
+
       for (var script of scripts) {
-        if (script.includes('stripe')) return 'stripe';
-        if (script.includes('paypal')) return 'paypal';
-        if (script.includes('square')) return 'square';
-        if (script.includes('braintree')) return 'braintree';
-        if (script.includes('razorpay')) return 'razorpay';
+        for (var provider of paymentProviders) {
+          if (script.toLowerCase().includes(provider.toLowerCase())) {
+            return provider;
+          }
+        }
       }
 
       return 'unknown';
@@ -763,14 +832,7 @@
 
     isPaymentScript: function(src) {
       // Enhanced payment script detection including Cardknox
-      var paymentPatterns = [
-        // Major payment processors
-        'stripe', 'paypal', 'square', 'braintree', 'razorpay',
-        // Additional payment services
-        'cardknox', 'authorize.net', 'payoneer', 'adyen',
-        // Generic payment terms
-        'payment', 'checkout', 'billing', 'gateway'
-      ];
+      var paymentPatterns = window.PaymentGuardConfig.paymentProviders;
       
       return paymentPatterns.some(function(pattern) {
         return src.toLowerCase().includes(pattern);
@@ -800,21 +862,7 @@
       }
       
       // Skip common local libraries
-      var localLibraryPatterns = [
-        '/lib/',
-        '/js/',
-        '/scripts/',
-        '/assets/',
-        'lib_npm',
-        'jquery.min.js',
-        'bootstrap.min.js',
-        'admin.common.js',
-        'adminlte.min.js',
-        'jquery-ui.min.js',
-        'jquery.validate',
-        'bootstrap.bundle.min.js',
-        'jquery-migrate'
-      ];
+      var localLibraryPatterns = window.PaymentGuardConfig.localLibraryPatterns;
       
       return localLibraryPatterns.some(function(pattern) {
         return src.includes(pattern);
